@@ -18,9 +18,35 @@ const playfairDisplay = Playfair_Display({
   weight: ["600", "700", "800"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://oson-navbat.vercel.app";
+const SITE_NAME = "osonNavbat";
+const SITE_TITLE = "osonNavbat - Navbat kutishni unuting!";
+const SITE_DESCRIPTION = "O'zingizga yoqqan usta yoki salonni toping va bir necha soniyada joy band qiling.";
+
 export const metadata: Metadata = {
-  title: "osonNavbat — Navbat kutishni unuting",
-  description: "EasyQueue: ustangiz yoki salonni toping va bir necha soniyada bron qiling.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_TITLE,
+    template: "%s | osonNavbat",
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    locale: "uz_UZ",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export const viewport: Viewport = {
@@ -34,7 +60,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="uz"
       className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <body className="h-full">{children}</body>

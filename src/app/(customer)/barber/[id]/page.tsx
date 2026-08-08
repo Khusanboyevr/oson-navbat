@@ -1,4 +1,5 @@
 import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import BarberHeader from "@/components/barber/BarberHeader";
@@ -7,6 +8,20 @@ import { getBarberById } from "@/lib/barbers";
 
 interface BarberDetailPageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: BarberDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const barber = getBarberById(id);
+
+  if (!barber) {
+    return { title: "Usta topilmadi" };
+  }
+
+  return {
+    title: barber.name,
+    description: `${barber.name} — ${barber.specialty}. ${barber.location}. Bir necha soniyada joy band qiling.`,
+  };
 }
 
 export default async function BarberDetailPage({ params }: BarberDetailPageProps) {

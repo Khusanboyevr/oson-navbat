@@ -71,6 +71,8 @@ NEXT_PUBLIC_YANDEX_MAPS_KEY=your-key-here
 
 Get a key at [developer.tech.yandex.ru](https://developer.tech.yandex.ru/).
 
+The same file also has `NEXT_PUBLIC_SITE_URL`, used to build absolute URLs for SEO metadata (OpenGraph images, canonical links). It defaults to `https://oson-navbat.vercel.app`; override it if your deployment uses a different domain.
+
 ### Run the dev server
 
 ```bash
@@ -89,4 +91,12 @@ npm run lint    # ESLint
 
 ## 📦 Deployment
 
-The app is ready to deploy on **[Vercel](https://vercel.com/new)** — connect the repository and add `NEXT_PUBLIC_YANDEX_MAPS_KEY` as an environment variable in the project settings if you want the live map enabled in production.
+The app is ready to deploy on **[Vercel](https://vercel.com/new)** — connect the repository and add these environment variables in the project settings:
+- `NEXT_PUBLIC_YANDEX_MAPS_KEY` — enables the live map (optional)
+- `NEXT_PUBLIC_SITE_URL` — set this to your actual production URL if it differs from `https://oson-navbat.vercel.app`, so OpenGraph/social share previews resolve correctly
+
+## 🔍 SEO & PWA
+
+- Per-page titles use a shared template (`Page | osonNavbat`); the barber detail page sets its title dynamically from the barber's name.
+- A branded OpenGraph image is generated on the fly (`app/opengraph-image.tsx`) for rich link previews on Telegram, WhatsApp, etc.
+- `app/manifest.ts` makes the app installable ("Add to Home Screen") with icons cropped from the brand mark and the app's actual theme/background colors.

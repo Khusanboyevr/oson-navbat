@@ -1,4 +1,5 @@
 import { CircleDollarSign, Scissors, Users } from "lucide-react";
+import type { Metadata } from "next";
 import BarberManagement from "@/components/dashboard/BarberManagement";
 import StatCard from "@/components/dashboard/StatCard";
 import { getBarberById } from "@/lib/barbers";
@@ -6,6 +7,10 @@ import { MANAGED_BARBERS } from "@/lib/adminBarbers";
 import { SUPERADMIN_STATS } from "@/lib/adminStats";
 import { BOOKINGS, type BookingStatus } from "@/lib/bookings";
 import { formatNumber } from "@/lib/format";
+
+export const metadata: Metadata = {
+  title: "Boshqaruv paneli",
+};
 
 const STATUS_LABEL: Record<BookingStatus, string> = {
   pending: "⏳ Kutilmoqda",
