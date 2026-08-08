@@ -41,7 +41,7 @@ export default function MapPlaceholder({ barbers }: MapPlaceholderProps) {
         >
           <Link
             href={`/barber/${barber.id}`}
-            className="flex items-center gap-2 rounded-2xl border border-white/40 bg-white/30 py-2 pl-2 pr-3 shadow-[0_4px_30px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:bg-white/45 hover:shadow-[0_8px_40px_rgba(0,0,0,0.18)]"
+            className="flex items-center gap-2 rounded-2xl border border-white/40 bg-white/30 py-2 pl-2 pr-3 shadow-[0_4px_30px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-all duration-200 ease-in-out hover:-translate-y-1 hover:bg-white/45 hover:shadow-[0_8px_40px_rgba(0,0,0,0.18)] active:scale-95"
           >
             <span
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"

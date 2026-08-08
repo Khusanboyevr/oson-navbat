@@ -31,7 +31,7 @@ export default function DateTimePicker({
               key={date.iso}
               type="button"
               onClick={() => onSelectDate(date.iso)}
-              className={`flex shrink-0 flex-col items-center gap-0.5 rounded-2xl border px-4 py-2.5 backdrop-blur-md transition-colors ${
+              className={`flex shrink-0 flex-col items-center gap-0.5 rounded-2xl border px-4 py-2.5 backdrop-blur-md transition-all duration-200 ease-in-out active:scale-95 ${
                 isSelected
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-white/40 bg-white/50 text-foreground hover:bg-white/70"
@@ -56,12 +56,12 @@ export default function DateTimePicker({
               type="button"
               disabled={booked}
               onClick={() => onSelectTime(time)}
-              className={`rounded-xl border px-3 py-2.5 text-sm font-medium backdrop-blur-md transition-colors ${
+              className={`rounded-xl border px-3 py-2.5 text-sm font-medium backdrop-blur-md transition-all duration-200 ease-in-out ${
                 booked
                   ? "cursor-not-allowed border-white/30 bg-white/20 text-muted-foreground line-through"
                   : isSelected
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-white/40 bg-white/50 text-foreground hover:bg-white/70"
+                    ? "border-primary bg-primary text-primary-foreground hover:-translate-y-[1px] active:scale-95"
+                    : "border-white/40 bg-white/50 text-foreground hover:-translate-y-[1px] hover:bg-white/70 active:scale-95"
               }`}
             >
               {time}

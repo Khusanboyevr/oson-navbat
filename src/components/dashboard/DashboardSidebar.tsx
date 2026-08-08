@@ -88,7 +88,7 @@ export default function DashboardSidebar() {
               key={label}
               href={href}
               onClick={() => setIsOpen(false)}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ease-in-out active:scale-[0.98] ${
                 isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground/70 hover:bg-white/50"
               }`}
             >
@@ -102,7 +102,7 @@ export default function DashboardSidebar() {
       <Link
         href="/"
         onClick={() => setIsOpen(false)}
-        className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/60 transition-colors hover:bg-white/50"
+        className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/60 transition-all duration-200 ease-in-out hover:bg-white/50 active:scale-[0.98]"
       >
         <ArrowLeft size={16} />
         Saytga qaytish
@@ -119,7 +119,7 @@ export default function DashboardSidebar() {
           aria-label={isOpen ? "Menyuni yopish" : "Menyuni ochish"}
           aria-expanded={isOpen}
           onClick={() => setIsOpen((open) => !open)}
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-foreground"
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-foreground transition-all duration-200 ease-in-out active:scale-90"
         >
           {isOpen ? <X size={20} /> : <Menu size={20} />}
         </button>

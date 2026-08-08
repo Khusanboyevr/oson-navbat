@@ -12,11 +12,18 @@ interface BookingsViewProps {
   bookings: Booking[];
 }
 
-export default function BookingsView({ bookings }: BookingsViewProps) {
+export default function BookingsView({ bookings: initialBookings }: BookingsViewProps) {
+  const [bookings, setBookings] = useState<Booking[]>(initialBookings);
   const [tab, setTab] = useState<BookingTab>("faol");
 
+  const handleCancel = (id: string) => {
+    setBookings((prev) =>
+      prev.map((booking) => (booking.id === id ? { ...booking, status: "cancelled" } : booking))
+    );
+  };
+
   const filtered = bookings.filter((booking) =>
-    tab === "faol" ? booking.status !== "completed" : booking.status === "completed"
+    tab === "faol" ? booking.status === "pending" || booking.status === "confirmed" : booking.status !== "pending" && booking.status !== "confirmed"
   );
 
   return (
@@ -44,7 +51,7 @@ export default function BookingsView({ bookings }: BookingsViewProps) {
           {filtered.map((booking) => {
             const barber = getBarberById(booking.barberId);
             if (!barber) return null;
-            return <BookingCard key={booking.id} booking={booking} barber={barber} />;
+            return <BookingCard key={booking.id} booking={booking} barber={barber} onCancel={handleCancel} />;
           })}
         </div>
       )}

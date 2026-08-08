@@ -16,7 +16,7 @@ export default function ToggleSwitch({ checked, onChange, label }: ToggleSwitchP
         aria-checked={checked}
         aria-label={label}
         onClick={() => onChange(!checked)}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-300 ${
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ease-in-out active:scale-95 ${
           checked ? "bg-primary" : "bg-white/50"
         }`}
       >

@@ -16,6 +16,11 @@
   --accent: #041449;
   --accent-hover: #020a30;
   --accent-foreground: #ffffff;
+
+  /* Destructive actions (logout, delete, cancel) */
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-foreground: #ffffff;
 }
 
 @theme inline {
@@ -32,6 +37,10 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-foreground: var(--accent-foreground);
+
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-foreground: var(--danger-foreground);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

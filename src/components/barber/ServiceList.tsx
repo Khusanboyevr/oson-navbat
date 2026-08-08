@@ -19,7 +19,7 @@ export default function ServiceList({ services, selectedServiceId, onSelect }: S
             type="button"
             onClick={() => onSelect(service.id)}
             aria-pressed={isSelected}
-            className={`flex items-center justify-between gap-4 rounded-2xl border p-4 text-left backdrop-blur-md transition-colors ${
+            className={`flex items-center justify-between gap-4 rounded-2xl border p-4 text-left backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] active:scale-[0.98] ${
               isSelected ? "border-primary bg-primary/10" : "border-white/40 bg-white/50 hover:bg-white/70"
             }`}
           >

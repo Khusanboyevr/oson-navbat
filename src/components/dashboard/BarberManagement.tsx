@@ -10,9 +10,18 @@ interface BarberManagementProps {
   initialBarbers: ManagedBarber[];
 }
 
+function inferSpecialtyCategory(specialty: string): string {
+  if (specialty.includes("Bolalar")) return "Bolalar";
+  if (specialty.includes("Manikyur") || specialty.includes("turmagi") || specialty.includes("Kirpik")) {
+    return "Ayollar";
+  }
+  return "Erkaklar";
+}
+
 export default function BarberManagement({ initialBarbers }: BarberManagementProps) {
   const [barbers, setBarbers] = useState<ManagedBarber[]>(initialBarbers);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingBarber, setEditingBarber] = useState<ManagedBarber | null>(null);
 
   const handleToggleBlock = (id: string) => {
     setBarbers((prev) =>
@@ -22,20 +31,41 @@ export default function BarberManagement({ initialBarbers }: BarberManagementPro
     );
   };
 
-  const handleEdit = () => {
-    // Editing flow is out of scope for this step — action is scaffolded for a future pass.
+  const handleOpenAdd = () => {
+    setEditingBarber(null);
+    setIsModalOpen(true);
   };
 
-  const handleAddBarber = (input: { name: string; specialty: string }) => {
-    const newBarber: ManagedBarber = {
-      id: `new-${Date.now()}`,
-      name: input.name,
-      specialty: input.specialty,
-      avatarColor: AVATAR_PALETTE[barbers.length % AVATAR_PALETTE.length],
-      status: "active",
-    };
-    setBarbers((prev) => [newBarber, ...prev]);
+  const handleEdit = (id: string) => {
+    const barber = barbers.find((item) => item.id === id);
+    if (!barber) return;
+    setEditingBarber(barber);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
     setIsModalOpen(false);
+    setEditingBarber(null);
+  };
+
+  const handleSaveBarber = (input: { name: string; specialty: string }) => {
+    if (editingBarber) {
+      setBarbers((prev) =>
+        prev.map((barber) =>
+          barber.id === editingBarber.id ? { ...barber, name: input.name, specialty: input.specialty } : barber
+        )
+      );
+    } else {
+      const newBarber: ManagedBarber = {
+        id: `new-${Date.now()}`,
+        name: input.name,
+        specialty: input.specialty,
+        avatarColor: AVATAR_PALETTE[barbers.length % AVATAR_PALETTE.length],
+        status: "active",
+      };
+      setBarbers((prev) => [newBarber, ...prev]);
+    }
+    handleCloseModal();
   };
 
   return (
@@ -44,8 +74,8 @@ export default function BarberManagement({ initialBarbers }: BarberManagementPro
         <h2 className="font-serif text-xl font-bold text-foreground sm:text-2xl">Ustalar ro&apos;yxati</h2>
         <button
           type="button"
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
+          onClick={handleOpenAdd}
+          className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-md active:scale-95"
         >
           <Plus size={16} />
           Yangi usta qo&apos;shish
@@ -59,7 +89,16 @@ export default function BarberManagement({ initialBarbers }: BarberManagementPro
       </div>
 
       {isModalOpen && (
-        <AddBarberModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleAddBarber} />
+        <AddBarberModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          onSave={handleSaveBarber}
+          initialValues={
+            editingBarber
+              ? { name: editingBarber.name, specialty: inferSpecialtyCategory(editingBarber.specialty) }
+              : undefined
+          }
+        />
       )}
     </section>
   );

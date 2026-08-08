@@ -11,6 +11,7 @@ const STATUS_LABEL: Record<BookingStatus, string> = {
   pending: "⏳ Kutilmoqda",
   confirmed: "Tasdiqlangan",
   completed: "✅ Yakunlangan",
+  cancelled: "Bekor qilindi",
 };
 
 export default function SuperAdminPage() {

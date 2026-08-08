@@ -23,7 +23,7 @@ export default function BookingTabs({ tab, onChange }: BookingTabsProps) {
             type="button"
             onClick={() => onChange(value)}
             aria-pressed={isActive}
-            className={`rounded-full px-6 py-2 text-sm font-medium transition-all duration-300 ${
+            className={`rounded-full px-6 py-2 text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${
               isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground/70 hover:bg-white/30"
             }`}
           >

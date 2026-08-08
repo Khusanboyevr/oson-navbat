@@ -38,7 +38,7 @@ export default function BarberRow({ barber, onEdit, onToggleBlock }: BarberRowPr
           <button
             type="button"
             onClick={() => onEdit(barber.id)}
-            className="flex items-center gap-1 rounded-xl border border-white/40 bg-white/25 px-3 py-1.5 text-xs font-semibold text-foreground backdrop-blur-md transition-colors hover:bg-white/40"
+            className="flex items-center gap-1 rounded-xl border border-white/40 bg-white/25 px-3 py-1.5 text-xs font-semibold text-foreground backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/40 active:scale-95"
           >
             <Pencil size={12} />
             Tahrirlash
@@ -46,7 +46,7 @@ export default function BarberRow({ barber, onEdit, onToggleBlock }: BarberRowPr
           <button
             type="button"
             onClick={() => onToggleBlock(barber.id)}
-            className={`flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:shadow-md active:scale-95 ${
               isActive
                 ? "bg-accent text-accent-foreground hover:bg-accent-hover"
                 : "bg-primary text-primary-foreground hover:bg-primary-hover"

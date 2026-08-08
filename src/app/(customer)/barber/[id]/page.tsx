@@ -21,7 +21,7 @@ export default async function BarberDetailPage({ params }: BarberDetailPageProps
     <div className="flex flex-col gap-8 py-8 sm:py-12">
       <Link
         href="/"
-        className="flex w-fit items-center gap-2 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground"
+        className="flex w-fit items-center gap-2 text-sm font-medium text-foreground/70 transition-colors duration-200 hover:text-foreground"
       >
         <ArrowLeft size={16} />
         Orqaga

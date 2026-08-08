@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 
-interface NewBarberInput {
+interface BarberFormValues {
   name: string;
   specialty: string;
 }
@@ -11,15 +11,17 @@ interface NewBarberInput {
 interface AddBarberModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (barber: NewBarberInput) => void;
+  onSave: (barber: BarberFormValues) => void;
+  initialValues?: BarberFormValues;
 }
 
 const SPECIALTIES = ["Erkaklar", "Ayollar", "Bolalar"];
 
-export default function AddBarberModal({ isOpen, onClose, onSave }: AddBarberModalProps) {
-  const [name, setName] = useState("");
+export default function AddBarberModal({ isOpen, onClose, onSave, initialValues }: AddBarberModalProps) {
+  const isEditMode = Boolean(initialValues);
+  const [name, setName] = useState(initialValues?.name ?? "");
   const [phone, setPhone] = useState("");
-  const [specialty, setSpecialty] = useState(SPECIALTIES[0]);
+  const [specialty, setSpecialty] = useState(initialValues?.specialty ?? SPECIALTIES[0]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -40,7 +42,7 @@ export default function AddBarberModal({ isOpen, onClose, onSave }: AddBarberMod
 
   if (!isOpen) return null;
 
-  const isValid = name.trim().length > 1 && phone.trim().length > 5;
+  const isValid = name.trim().length > 1 && (isEditMode || phone.trim().length > 5);
 
   const handleSave = () => {
     if (!isValid) return;
@@ -61,15 +63,21 @@ export default function AddBarberModal({ isOpen, onClose, onSave }: AddBarberMod
           type="button"
           aria-label="Yopish"
           onClick={onClose}
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/30 text-foreground/70 backdrop-blur-md transition-colors hover:bg-white/50 hover:text-foreground"
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/30 text-foreground/70 backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/50 hover:text-foreground active:scale-90"
         >
           <X size={16} />
         </button>
 
         <div className="flex flex-col gap-5">
           <div>
-            <h2 className="font-serif text-xl font-bold text-foreground">Yangi usta qo&apos;shish</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Tizimga yangi ustani ro&apos;yxatdan o&apos;tkazing.</p>
+            <h2 className="font-serif text-xl font-bold text-foreground">
+              {isEditMode ? "Ustani tahrirlash" : "Yangi usta qo'shish"}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isEditMode
+                ? "Usta ma'lumotlarini yangilang."
+                : "Tizimga yangi ustani ro'yxatdan o'tkazing."}
+            </p>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -84,17 +92,19 @@ export default function AddBarberModal({ isOpen, onClose, onSave }: AddBarberMod
               />
             </label>
 
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium text-foreground">Telefon raqami</span>
-              <input
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                type="tel"
-                inputMode="tel"
-                placeholder="+998 90 123 45 67"
-                className="w-full rounded-2xl border border-white/40 bg-white/40 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/40"
-              />
-            </label>
+            {!isEditMode && (
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium text-foreground">Telefon raqami</span>
+                <input
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="+998 90 123 45 67"
+                  className="w-full rounded-2xl border border-white/40 bg-white/40 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </label>
+            )}
 
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium text-foreground">Yo&apos;nalishi</span>
@@ -116,7 +126,7 @@ export default function AddBarberModal({ isOpen, onClose, onSave }: AddBarberMod
             type="button"
             onClick={handleSave}
             disabled={!isValid}
-            className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
+            className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
           >
             Saqlash
           </button>

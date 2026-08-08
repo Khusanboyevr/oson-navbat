@@ -17,7 +17,7 @@ export default function BookingSummary({ service, dateIso, time, onContinue }: B
   return (
     <>
       <aside className="hidden lg:block">
-        <div className="sticky top-24 flex flex-col gap-4 rounded-3xl border border-white/40 bg-white/50 p-6 shadow-lg backdrop-blur-xl">
+        <div className="sticky top-24 flex flex-col gap-4 rounded-3xl border border-white/30 bg-white/20 p-6 shadow-[0_4px_30px_rgba(0,0,0,0.1)] backdrop-blur-xl">
           <h3 className="text-lg font-bold text-foreground">Bron tafsilotlari</h3>
 
           <div className="flex flex-col gap-3 text-sm">
@@ -35,7 +35,7 @@ export default function BookingSummary({ service, dateIso, time, onContinue }: B
             type="button"
             onClick={onContinue}
             disabled={!isComplete}
-            className="w-full rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+            className="w-full rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
           >
             Davom etish
           </button>
@@ -57,7 +57,7 @@ export default function BookingSummary({ service, dateIso, time, onContinue }: B
             type="button"
             onClick={onContinue}
             disabled={!isComplete}
-            className="shrink-0 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+            className="shrink-0 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
           >
             Davom etish
           </button>
