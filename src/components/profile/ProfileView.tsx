@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronRight, LifeBuoy, LogOut } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import { useLanguage } from "@/components/providers/LanguageProvider";
@@ -59,13 +60,13 @@ export default function ProfileView() {
           <ChevronRight size={16} className="text-muted-foreground" />
         </a>
 
-        <button
-          type="button"
+        <Link
+          href="/login"
           className="flex items-center justify-center gap-2 rounded-2xl border border-danger/30 bg-danger/10 px-5 py-4 text-sm font-semibold text-danger backdrop-blur-xl transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-danger/20 hover:shadow-md active:scale-95"
         >
           <LogOut size={18} />
           {t("profile.logout")}
-        </button>
+        </Link>
       </div>
     </div>
   );

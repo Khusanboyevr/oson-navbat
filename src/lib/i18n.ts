@@ -24,7 +24,27 @@ export type TranslationKey =
   | "profile.sms"
   | "profile.telegram"
   | "profile.support"
-  | "profile.logout";
+  | "profile.logout"
+  | "auth.clientTitle"
+  | "auth.clientSubtitle"
+  | "auth.google"
+  | "auth.phone"
+  | "auth.phonePlaceholder"
+  | "auth.getCode"
+  | "auth.sending"
+  | "auth.enterCode"
+  | "auth.codeSentTo"
+  | "auth.verify"
+  | "auth.checking"
+  | "auth.back"
+  | "auth.successTitle"
+  | "auth.successSubtitleClient"
+  | "auth.successSubtitleBarber"
+  | "auth.continue"
+  | "auth.barberCta"
+  | "auth.barberTitle"
+  | "auth.barberSubtitle"
+  | "auth.clientCta";
 
 export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
   uz: {
@@ -44,6 +64,26 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "profile.telegram": "Telegram orqali",
     "profile.support": "Yordam markazi",
     "profile.logout": "Tizimdan chiqish",
+    "auth.clientTitle": "Xush kelibsiz!",
+    "auth.clientSubtitle": "Davom etish uchun tizimga kiring",
+    "auth.google": "Google orqali kirish",
+    "auth.phone": "Telefon raqam orqali",
+    "auth.phonePlaceholder": "+998 90 123 45 67",
+    "auth.getCode": "Kodni olish",
+    "auth.sending": "Yuborilmoqda...",
+    "auth.enterCode": "SMS kodni kiriting",
+    "auth.codeSentTo": "Raqamingizga 4 xonali kod yuborildi.",
+    "auth.verify": "Tasdiqlash",
+    "auth.checking": "Tekshirilmoqda...",
+    "auth.back": "Orqaga",
+    "auth.successTitle": "Muvaffaqiyatli kirdingiz!",
+    "auth.successSubtitleClient": "Endi ustalarni topib, bron qilishingiz mumkin.",
+    "auth.successSubtitleBarber": "Endi bugungi jadvalingizni boshqarishingiz mumkin.",
+    "auth.continue": "Davom etish",
+    "auth.barberCta": "Sartaroshmisiz? Bizga qo'shiling",
+    "auth.barberTitle": "Usta sifatida kirish",
+    "auth.barberSubtitle": "Mijozlaringizni onlayn qabul qilishni boshlang",
+    "auth.clientCta": "Mijoz sifatida kirish",
   },
   ru: {
     "nav.home": "Главная",
@@ -62,6 +102,26 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "profile.telegram": "Через Telegram",
     "profile.support": "Центр поддержки",
     "profile.logout": "Выйти из системы",
+    "auth.clientTitle": "Добро пожаловать!",
+    "auth.clientSubtitle": "Войдите, чтобы продолжить",
+    "auth.google": "Войти через Google",
+    "auth.phone": "По номеру телефона",
+    "auth.phonePlaceholder": "+998 90 123 45 67",
+    "auth.getCode": "Получить код",
+    "auth.sending": "Отправка...",
+    "auth.enterCode": "Введите SMS-код",
+    "auth.codeSentTo": "На ваш номер отправлен 4-значный код.",
+    "auth.verify": "Подтвердить",
+    "auth.checking": "Проверка...",
+    "auth.back": "Назад",
+    "auth.successTitle": "Вы успешно вошли!",
+    "auth.successSubtitleClient": "Теперь вы можете найти мастера и забронировать место.",
+    "auth.successSubtitleBarber": "Теперь вы можете управлять своим расписанием.",
+    "auth.continue": "Продолжить",
+    "auth.barberCta": "Вы мастер? Присоединяйтесь к нам",
+    "auth.barberTitle": "Вход для мастеров",
+    "auth.barberSubtitle": "Начните принимать клиентов онлайн",
+    "auth.clientCta": "Войти как клиент",
   },
   en: {
     "nav.home": "Home",
@@ -80,5 +140,25 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "profile.telegram": "Via Telegram",
     "profile.support": "Support Center",
     "profile.logout": "Log out",
+    "auth.clientTitle": "Welcome!",
+    "auth.clientSubtitle": "Sign in to continue",
+    "auth.google": "Continue with Google",
+    "auth.phone": "Continue with phone",
+    "auth.phonePlaceholder": "+998 90 123 45 67",
+    "auth.getCode": "Get code",
+    "auth.sending": "Sending...",
+    "auth.enterCode": "Enter the SMS code",
+    "auth.codeSentTo": "A 4-digit code was sent to your number.",
+    "auth.verify": "Verify",
+    "auth.checking": "Checking...",
+    "auth.back": "Back",
+    "auth.successTitle": "You're signed in!",
+    "auth.successSubtitleClient": "You can now find a barber and book a slot.",
+    "auth.successSubtitleBarber": "You can now manage your daily schedule.",
+    "auth.continue": "Continue",
+    "auth.barberCta": "Are you a barber? Join us",
+    "auth.barberTitle": "Sign in as a barber",
+    "auth.barberSubtitle": "Start accepting clients online",
+    "auth.clientCta": "Sign in as a client",
   },
 };

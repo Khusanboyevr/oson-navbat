@@ -32,9 +32,9 @@ const ROLE_CONFIG: Record<"admin" | "superadmin", RoleConfig> = {
   superadmin: {
     title: "Super Admin",
     links: [
-      { label: "Dashboard", href: "/superadmin", icon: LayoutDashboard },
+      { label: "Dashboard", href: "/super-admin", icon: LayoutDashboard },
       { label: "Ustalar", icon: Scissors },
-      { label: "Mijozlar", href: "/superadmin/users", icon: Users },
+      { label: "Mijozlar", href: "/super-admin/users", icon: Users },
       { label: "Sozlamalar", icon: Settings },
     ],
   },
@@ -51,7 +51,7 @@ const ROLE_CONFIG: Record<"admin" | "superadmin", RoleConfig> = {
 export default function DashboardSidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const role: "admin" | "superadmin" = pathname.startsWith("/superadmin") ? "superadmin" : "admin";
+  const role: "admin" | "superadmin" = pathname.startsWith("/super-admin") ? "superadmin" : "admin";
   const config = ROLE_CONFIG[role];
 
   const navContent = (

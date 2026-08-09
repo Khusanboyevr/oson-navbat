@@ -44,7 +44,7 @@ export default function Header() {
         </nav>
 
         <Link
-          href="/profile"
+          href="/login"
           className="hidden rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-md active:scale-95 md:inline-block"
         >
           {t("nav.login")}
@@ -80,7 +80,7 @@ export default function Header() {
               );
             })}
             <Link
-              href="/profile"
+              href="/login"
               onClick={() => setIsMenuOpen(false)}
               className="mt-2 rounded-full bg-primary px-5 py-2.5 text-center text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-md active:scale-95"
             >
