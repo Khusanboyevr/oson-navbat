@@ -1,10 +1,11 @@
 "use client";
 
-import { Check, Phone } from "lucide-react";
+import { Check, Loader2, Phone } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import GoogleIcon from "@/components/auth/GoogleIcon";
 import { useLanguage } from "@/components/providers/LanguageProvider";
+import { isSupabaseConfigured, requestPhoneOtp, signInWithGoogle, verifyPhoneOtp } from "@/lib/auth";
 import type { TranslationKey } from "@/lib/i18n";
 
 export type AuthStep = "select" | "phone" | "otp" | "success";
@@ -18,12 +19,17 @@ interface AuthFormProps {
 
 const OTP_LENGTH = 4;
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export default function AuthForm({ role, successRoute, onStepChange }: AuthFormProps) {
   const { t } = useLanguage();
   const [step, setStep] = useState<AuthStep>("select");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
@@ -33,22 +39,41 @@ export default function AuthForm({ role, successRoute, onStepChange }: AuthFormP
   const isPhoneValid = phone.trim().length >= 9;
   const isOtpComplete = otp.every((digit) => digit.length === 1);
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    setTimeout(() => {
+    setError(null);
+
+    const [{ error: authError }] = await Promise.all([signInWithGoogle(), wait(500)]);
+
+    if (authError) {
       setIsSubmitting(false);
-      setStep("success");
-    }, 600);
+      setError(authError);
+      return;
+    }
+
+    // Once real credentials are set, the browser is mid-redirect to Google right
+    // now — keep the spinner up rather than showing a success step that would
+    // never actually be reached before navigation takes over.
+    if (isSupabaseConfigured) return;
+
+    setIsSubmitting(false);
+    setStep("success");
   };
 
-  const handleGetCode = () => {
+  const handleGetCode = async () => {
     if (!isPhoneValid || isSubmitting) return;
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setStep("otp");
-    }, 600);
+    setError(null);
+
+    const [{ error: authError }] = await Promise.all([requestPhoneOtp(phone.trim()), wait(500)]);
+    setIsSubmitting(false);
+
+    if (authError) {
+      setError(authError);
+      return;
+    }
+    setStep("otp");
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -69,13 +94,20 @@ export default function AuthForm({ role, successRoute, onStepChange }: AuthFormP
     }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     if (!isOtpComplete || isSubmitting) return;
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setStep("success");
-    }, 600);
+    setError(null);
+
+    const code = otp.join("");
+    const [{ error: authError }] = await Promise.all([verifyPhoneOtp(phone.trim(), code), wait(500)]);
+    setIsSubmitting(false);
+
+    if (authError) {
+      setError(authError);
+      return;
+    }
+    setStep("success");
   };
 
   const titleKey: TranslationKey = role === "barber" ? "auth.barberTitle" : "auth.clientTitle";
@@ -94,6 +126,12 @@ export default function AuthForm({ role, successRoute, onStepChange }: AuthFormP
         </div>
       )}
 
+      {error && step !== "success" && (
+        <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-2.5 text-center text-xs text-danger">
+          {error}
+        </p>
+      )}
+
       {step === "select" && (
         <div className="flex flex-col gap-3">
           <button
@@ -102,7 +140,7 @@ export default function AuthForm({ role, successRoute, onStepChange }: AuthFormP
             disabled={isSubmitting}
             className="btn-premium flex items-center justify-center gap-3 rounded-full border border-white/50 bg-white/30 px-5 py-3.5 text-sm font-semibold text-foreground shadow-[0_4px_16px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/45 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <GoogleIcon />
+            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <GoogleIcon />}
             {t("auth.google")}
           </button>
 
@@ -133,14 +171,18 @@ export default function AuthForm({ role, successRoute, onStepChange }: AuthFormP
             type="button"
             onClick={handleGetCode}
             disabled={!isPhoneValid || isSubmitting}
-            className="btn-premium w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
+            className="btn-premium flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
           >
+            {isSubmitting && <Loader2 size={16} className="animate-spin" />}
             {isSubmitting ? t("auth.sending") : t("auth.getCode")}
           </button>
 
           <button
             type="button"
-            onClick={() => setStep("select")}
+            onClick={() => {
+              setError(null);
+              setStep("select");
+            }}
             className="text-sm font-medium text-foreground/60 transition-colors duration-200 hover:text-foreground"
           >
             {t("auth.back")}
@@ -172,14 +214,18 @@ export default function AuthForm({ role, successRoute, onStepChange }: AuthFormP
             type="button"
             onClick={handleVerify}
             disabled={!isOtpComplete || isSubmitting}
-            className="btn-premium w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
+            className="btn-premium flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
           >
+            {isSubmitting && <Loader2 size={16} className="animate-spin" />}
             {isSubmitting ? t("auth.checking") : t("auth.verify")}
           </button>
 
           <button
             type="button"
-            onClick={() => setStep("phone")}
+            onClick={() => {
+              setError(null);
+              setStep("phone");
+            }}
             className="text-sm font-medium text-foreground/60 transition-colors duration-200 hover:text-foreground"
           >
             {t("auth.back")}

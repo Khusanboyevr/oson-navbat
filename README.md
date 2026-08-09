@@ -30,6 +30,7 @@ The visual language — soft frosted-glass cards over a warm mesh-gradient backg
 - **[lucide-react](https://lucide.dev/)** for icons
 - **[@pbe/react-yandex-maps](https://www.npmjs.com/package/@pbe/react-yandex-maps)** for the real map integration
 - **[Playfair Display](https://fonts.google.com/specimen/Playfair+Display)** + **[Geist](https://vercel.com/font)** via `next/font`
+- **[Supabase](https://supabase.com/)** for auth and the database (client + schema scaffolded; see [Backend](#-backend-supabase) below)
 
 ## 📁 Project Structure
 
@@ -73,6 +74,8 @@ Get a key at [developer.tech.yandex.ru](https://developer.tech.yandex.ru/).
 
 The same file also has `NEXT_PUBLIC_SITE_URL`, used to build absolute URLs for SEO metadata (OpenGraph images, canonical links). It defaults to `https://oson-navbat.vercel.app`; override it if your deployment uses a different domain.
 
+It also has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` — see [Backend (Supabase)](#-backend-supabase) below.
+
 ### Run the dev server
 
 ```bash
@@ -94,6 +97,25 @@ npm run lint    # ESLint
 The app is ready to deploy on **[Vercel](https://vercel.com/new)** — connect the repository and add these environment variables in the project settings:
 - `NEXT_PUBLIC_YANDEX_MAPS_KEY` — enables the live map (optional)
 - `NEXT_PUBLIC_SITE_URL` — set this to your actual production URL if it differs from `https://oson-navbat.vercel.app`, so OpenGraph/social share previews resolve correctly
+- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — enables real auth (optional; the login flow runs in demo mode without them)
+
+## 🗄 Backend (Supabase)
+
+The app currently runs entirely on mock data (`src/lib/*.ts`) — Supabase is wired in but optional until you connect a real project:
+
+- **`src/lib/supabase.ts`** — the client. `isSupabaseConfigured` is `false` (and `supabase` is `null`) until both env vars above are set, so nothing crashes without credentials.
+- **`src/lib/database.types.ts`** — hand-written to match the shape `supabase gen types typescript` produces, so it's a drop-in replacement once you generate real types from your project.
+- **`src/lib/auth.ts`** — `signInWithGoogle`, `requestPhoneOtp`, `verifyPhoneOtp`, already wired to the `/login` UI. Every call is a no-op success in demo mode.
+
+### Schema
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `profiles` | One row per authenticated user (client, barber, or super admin) | `id` (matches `auth.users.id`), `phone`, `name`, `role` |
+| `barbers` | A barbershop/salon profile, owned by a `profiles` row | `user_id` → `profiles.id`, `name`, `specialty`, `category`, `status`, `rating`, `location`, `lat`/`lng` |
+| `bookings` | An appointment | `client_id` → `profiles.id`, `barber_id` → `barbers.id`, `date`, `time`, `service`, `price`, `status` |
+
+To go live: create these tables in your Supabase project (matching `database.types.ts`), enable Row Level Security, add a Google provider and phone/SMS provider under Authentication, and add an `/auth/callback` route to complete the Google OAuth redirect.
 
 ## 🔍 SEO & PWA
 
