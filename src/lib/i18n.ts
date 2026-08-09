@@ -23,6 +23,7 @@ export type TranslationKey =
   | "profile.notifications"
   | "profile.sms"
   | "profile.telegram"
+  | "profile.connectTelegram"
   | "profile.support"
   | "profile.logout"
   | "auth.clientTitle"
@@ -62,6 +63,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "profile.notifications": "Xabarnomalar",
     "profile.sms": "SMS orqali",
     "profile.telegram": "Telegram orqali",
+    "profile.connectTelegram": "Telegram Botga ulash",
     "profile.support": "Yordam markazi",
     "profile.logout": "Tizimdan chiqish",
     "auth.clientTitle": "Xush kelibsiz!",
@@ -100,6 +102,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "profile.notifications": "Уведомления",
     "profile.sms": "По SMS",
     "profile.telegram": "Через Telegram",
+    "profile.connectTelegram": "Подключить Telegram-бота",
     "profile.support": "Центр поддержки",
     "profile.logout": "Выйти из системы",
     "auth.clientTitle": "Добро пожаловать!",
@@ -138,6 +141,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "profile.notifications": "Notifications",
     "profile.sms": "Via SMS",
     "profile.telegram": "Via Telegram",
+    "profile.connectTelegram": "Connect Telegram Bot",
     "profile.support": "Support Center",
     "profile.logout": "Log out",
     "auth.clientTitle": "Welcome!",

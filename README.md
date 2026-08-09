@@ -117,6 +117,15 @@ The app currently runs entirely on mock data (`src/lib/*.ts`) — Supabase is wi
 
 To go live: create these tables in your Supabase project (matching `database.types.ts`), enable Row Level Security, add a Google provider and phone/SMS provider under Authentication, and add an `/auth/callback` route to complete the Google OAuth redirect.
 
+### API routes
+
+Stubs the frontend already calls, ready for a backend dev to fill in with real Supabase queries:
+
+| Route | Methods | Notes |
+|---|---|---|
+| `/api/bookings` | `GET`, `POST` | `GET` currently returns the mock `BOOKINGS` list; `POST` echoes the submitted body back with a generated id. Response envelope: `{ status, message, data }`. |
+| `/api/auth/telegram` | `GET`, `POST` | Stub target for the Telegram Bot API webhook — Telegram POSTs an `Update` object here on every bot event. |
+
 ## 🔍 SEO & PWA
 
 - Per-page titles use a shared template (`Page | osonNavbat`); the barber detail page sets its title dynamically from the barber's name.

@@ -3,10 +3,13 @@
 import { ChevronRight, LifeBuoy, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import TelegramIcon from "@/components/icons/TelegramIcon";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { LANGUAGES, LANGUAGE_LABELS } from "@/lib/i18n";
+
+const TELEGRAM_BOT_DEEP_LINK = "https://t.me/osonNavbat_bot?start=user_mock_id_123";
 
 export default function ProfileView() {
   const { language, setLanguage, t } = useLanguage();
@@ -43,6 +46,18 @@ export default function ProfileView() {
           <span className="text-sm font-medium text-foreground">{t("profile.notifications")}</span>
           <ToggleSwitch label={t("profile.sms")} checked={smsEnabled} onChange={setSmsEnabled} />
           <ToggleSwitch label={t("profile.telegram")} checked={telegramEnabled} onChange={setTelegramEnabled} />
+
+          {telegramEnabled && (
+            <a
+              href={TELEGRAM_BOT_DEEP_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-premium animate-fade-in animate-glow-pulse flex items-center justify-center gap-2 rounded-full border border-white/50 bg-white/30 px-5 py-3 text-sm font-semibold text-foreground backdrop-blur-xl transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/45 active:scale-95"
+            >
+              <TelegramIcon size={20} />
+              {t("profile.connectTelegram")}
+            </a>
+          )}
         </div>
       </section>
 
