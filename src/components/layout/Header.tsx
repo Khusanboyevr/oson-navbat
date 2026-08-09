@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { useLanguage } from "@/components/providers/LanguageProvider";
+import { useSlidingIndicator } from "@/hooks/useSlidingIndicator";
 import type { TranslationKey } from "@/lib/i18n";
 
 const NAV_LINKS: { href: string; key: TranslationKey }[] = [
@@ -14,10 +15,17 @@ const NAV_LINKS: { href: string; key: TranslationKey }[] = [
   { href: "/favorites", key: "nav.favorites" },
 ];
 
+function getActiveHref(pathname: string): string {
+  const match = NAV_LINKS.find(({ href }) => (href === "/" ? pathname === "/" : pathname.startsWith(href)));
+  return match?.href ?? "";
+}
+
 export default function Header() {
   const pathname = usePathname();
   const { t } = useLanguage();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const activeHref = getActiveHref(pathname);
+  const { containerRef, registerItem, style: indicatorStyle } = useSlidingIndicator(activeHref);
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/40 bg-white/60 backdrop-blur-xl">
@@ -26,14 +34,25 @@ export default function Header() {
           <Image src="/logo.png" alt="osonNavbat" width={872} height={282} priority className="h-8 w-auto sm:h-10" />
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav
+          ref={containerRef}
+          className="relative hidden items-center gap-1 rounded-full border border-white/30 bg-white/15 p-1 backdrop-blur-xl md:flex"
+        >
+          {indicatorStyle && (
+            <span
+              aria-hidden
+              className="absolute inset-y-1 rounded-full border border-white/50 bg-white/50 shadow-[0_2px_10px_rgba(0,0,0,0.08)] backdrop-blur-md transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+              style={{ left: indicatorStyle.left, width: indicatorStyle.width }}
+            />
+          )}
           {NAV_LINKS.map(({ href, key }) => {
-            const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            const isActive = href === activeHref;
             return (
               <Link
                 key={href}
+                ref={registerItem(href)}
                 href={href}
-                className={`text-sm font-medium transition-colors duration-200 ${
+                className={`relative z-10 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-200 ${
                   isActive ? "text-primary" : "text-foreground/70 hover:text-foreground"
                 }`}
               >
@@ -65,7 +84,7 @@ export default function Header() {
         <div className="border-t border-white/40 bg-white/70 px-4 py-4 backdrop-blur-xl md:hidden">
           <nav className="flex flex-col gap-1">
             {NAV_LINKS.map(({ href, key }) => {
-              const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+              const isActive = href === activeHref;
               return (
                 <Link
                   key={href}
