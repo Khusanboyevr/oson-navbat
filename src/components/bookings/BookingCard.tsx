@@ -65,7 +65,7 @@ export default function BookingCard({ booking, barber, onCancel }: BookingCardPr
             <button
               type="button"
               onClick={() => onCancel(booking.id)}
-              className="rounded-xl border border-white/40 bg-white/25 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/40 active:scale-95"
+              className="btn-premium rounded-full border border-white/50 bg-white/30 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/45 active:scale-95"
             >
               Bekor qilish
             </button>
@@ -73,7 +73,7 @@ export default function BookingCard({ booking, barber, onCancel }: BookingCardPr
               href={directionsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-md active:scale-95"
+              className="btn-premium rounded-full bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground shadow-[0_4px_16px_rgba(4,20,73,0.3)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-[0_8px_20px_rgba(4,20,73,0.4)] active:scale-95"
             >
               Yo&apos;nalish olish
             </a>

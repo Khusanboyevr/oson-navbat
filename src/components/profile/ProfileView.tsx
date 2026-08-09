@@ -51,7 +51,7 @@ export default function ProfileView() {
           href="https://t.me/osonnavbat_support"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-between rounded-2xl border border-white/30 bg-white/20 px-5 py-4 text-sm font-semibold text-foreground backdrop-blur-xl transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/30 hover:shadow-md active:scale-95"
+          className="btn-premium flex items-center justify-between rounded-full border border-white/50 bg-white/30 px-5 py-4 text-sm font-semibold text-foreground shadow-[0_4px_16px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/45 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] active:scale-95"
         >
           <span className="flex items-center gap-3">
             <LifeBuoy size={18} className="text-primary" />
@@ -62,7 +62,7 @@ export default function ProfileView() {
 
         <Link
           href="/login"
-          className="flex items-center justify-center gap-2 rounded-2xl border border-danger/30 bg-danger/10 px-5 py-4 text-sm font-semibold text-danger backdrop-blur-xl transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-danger/20 hover:shadow-md active:scale-95"
+          className="btn-premium flex items-center justify-center gap-2 rounded-full border border-danger/30 bg-danger/10 px-5 py-4 text-sm font-semibold text-danger shadow-[0_4px_16px_rgba(220,38,38,0.15)] backdrop-blur-xl transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-danger/20 hover:shadow-[0_8px_24px_rgba(220,38,38,0.25)] active:scale-95"
         >
           <LogOut size={18} />
           {t("profile.logout")}

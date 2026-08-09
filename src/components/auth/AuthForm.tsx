@@ -100,7 +100,7 @@ export default function AuthForm({ role, successRoute, onStepChange }: AuthFormP
             type="button"
             onClick={handleGoogleLogin}
             disabled={isSubmitting}
-            className="flex items-center justify-center gap-3 rounded-2xl border border-white/40 bg-white/50 px-5 py-3.5 text-sm font-semibold text-foreground backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/70 hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn-premium flex items-center justify-center gap-3 rounded-full border border-white/50 bg-white/30 px-5 py-3.5 text-sm font-semibold text-foreground shadow-[0_4px_16px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/45 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <GoogleIcon />
             {t("auth.google")}
@@ -109,7 +109,7 @@ export default function AuthForm({ role, successRoute, onStepChange }: AuthFormP
           <button
             type="button"
             onClick={() => setStep("phone")}
-            className="flex items-center justify-center gap-3 rounded-2xl bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-md active:scale-95"
+            className="btn-premium flex items-center justify-center gap-3 rounded-full bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95"
           >
             <Phone size={18} />
             {t("auth.phone")}
@@ -133,7 +133,7 @@ export default function AuthForm({ role, successRoute, onStepChange }: AuthFormP
             type="button"
             onClick={handleGetCode}
             disabled={!isPhoneValid || isSubmitting}
-            className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+            className="btn-premium w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
           >
             {isSubmitting ? t("auth.sending") : t("auth.getCode")}
           </button>
@@ -172,7 +172,7 @@ export default function AuthForm({ role, successRoute, onStepChange }: AuthFormP
             type="button"
             onClick={handleVerify}
             disabled={!isOtpComplete || isSubmitting}
-            className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+            className="btn-premium w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
           >
             {isSubmitting ? t("auth.checking") : t("auth.verify")}
           </button>
@@ -199,7 +199,7 @@ export default function AuthForm({ role, successRoute, onStepChange }: AuthFormP
 
           <Link
             href={successRoute}
-            className="w-full rounded-xl bg-primary px-5 py-3 text-center text-sm font-semibold text-primary-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-md active:scale-95"
+            className="btn-premium w-full rounded-full bg-primary px-5 py-3 text-center text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95"
           >
             {t("auth.continue")}
           </Link>

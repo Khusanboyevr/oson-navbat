@@ -53,21 +53,21 @@ export default function AdminBookingCard({ entry, onConfirm, onCancel, onComplet
           <button
             type="button"
             onClick={() => onConfirm(entry.id)}
-            className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-md active:scale-95"
+            className="btn-premium rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.3)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_20px_rgba(20,94,229,0.4)] active:scale-95"
           >
             Tasdiqlash
           </button>
           <button
             type="button"
             onClick={() => onComplete(entry.id)}
-            className="rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-md active:scale-95"
+            className="btn-premium rounded-full bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground shadow-[0_4px_16px_rgba(4,20,73,0.3)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-[0_8px_20px_rgba(4,20,73,0.4)] active:scale-95"
           >
             Yakunlash
           </button>
           <button
             type="button"
             onClick={() => onCancel(entry.id)}
-            className="rounded-xl border border-white/40 bg-white/25 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/40 active:scale-95"
+            className="btn-premium rounded-full border border-white/50 bg-white/30 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/45 active:scale-95"
           >
             Bekor qilish
           </button>

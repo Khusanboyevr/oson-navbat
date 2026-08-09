@@ -131,7 +131,7 @@ export default function BookingModal({ isOpen, onClose, summary }: BookingModalP
               type="button"
               onClick={handleGetCode}
               disabled={!isPhoneValid || isSubmitting}
-              className="w-full rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              className="btn-premium w-full rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground shadow-[0_4px_16px_rgba(4,20,73,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-[0_8px_24px_rgba(4,20,73,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
             >
               {isSubmitting ? "Yuborilmoqda..." : "Kodni olish"}
             </button>
@@ -167,7 +167,7 @@ export default function BookingModal({ isOpen, onClose, summary }: BookingModalP
               type="button"
               onClick={handleVerify}
               disabled={!isOtpComplete || isSubmitting}
-              className="w-full rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              className="btn-premium w-full rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground shadow-[0_4px_16px_rgba(4,20,73,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-[0_8px_24px_rgba(4,20,73,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
             >
               {isSubmitting ? "Tekshirilmoqda..." : "Tasdiqlash"}
             </button>
@@ -190,14 +190,14 @@ export default function BookingModal({ isOpen, onClose, summary }: BookingModalP
               <Link
                 href="/bookings"
                 onClick={onClose}
-                className="w-full rounded-xl bg-primary px-5 py-3 text-center text-sm font-semibold text-primary-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-md active:scale-95"
+                className="btn-premium w-full rounded-full bg-primary px-5 py-3 text-center text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95"
               >
                 Bronlarimga o&apos;tish
               </Link>
               <Link
                 href="/"
                 onClick={onClose}
-                className="w-full rounded-xl border border-white/30 bg-white/20 px-5 py-3 text-center text-sm font-semibold text-foreground backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/35 active:scale-95"
+                className="btn-premium w-full rounded-full border border-white/50 bg-white/25 px-5 py-3 text-center text-sm font-semibold text-foreground shadow-[0_4px_16px_rgba(0,0,0,0.08)] backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/40 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] active:scale-95"
               >
                 Asosiy sahifaga qaytish
               </Link>

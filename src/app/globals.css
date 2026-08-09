@@ -112,3 +112,49 @@ body {
 .animate-slide-in-left {
   animation: slide-in-left 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/*
+ * Premium glass button finish: a static top-down gloss (::before) plus a
+ * diagonal light sweep that travels across on hover (::after). White-based
+ * so it reads correctly over any button color (primary blue, accent navy,
+ * or a translucent glass surface) without per-color variants.
+ */
+.btn-premium {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.btn-premium::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.08) 45%, rgba(255, 255, 255, 0) 65%);
+  pointer-events: none;
+}
+
+.btn-premium::after {
+  content: "";
+  position: absolute;
+  top: -30%;
+  left: -60%;
+  width: 35%;
+  height: 160%;
+  z-index: 1;
+  background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  transform: skewX(-20deg) translateX(-20%);
+  transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.btn-premium:not(:disabled):hover::after {
+  transform: skewX(-20deg) translateX(420%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-premium::after {
+    display: none;
+  }
+}
