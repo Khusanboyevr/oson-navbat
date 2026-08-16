@@ -12,10 +12,10 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import Logo from "@/components/layout/Logo";
 
 interface NavLink {
   label: string;
@@ -57,9 +57,7 @@ export default function DashboardSidebar() {
   const navContent = (
     <div className="flex h-full flex-col gap-6 p-5">
       <div>
-        <Link href="/" className="flex items-center" onClick={() => setIsOpen(false)}>
-          <Image src="/logo.png" alt="osonNavbat" width={872} height={282} className="h-8 w-auto" />
-        </Link>
+        <Logo onClick={() => setIsOpen(false)} />
         <p className="mt-3 rounded-full border border-white/40 bg-white/40 px-3 py-1 text-center text-xs font-medium text-foreground/70 backdrop-blur-md">
           {config.title}
         </p>

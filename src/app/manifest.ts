@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "osonNavbat — Navbat kutishni unuting!",
-    short_name: "osonNavbat",
+    name: "Qulaynavbat — Navbat kutishni unuting!",
+    short_name: "Qulaynavbat",
     description: "O'zingizga yoqqan usta yoki salonni toping va bir necha soniyada joy band qiling.",
     start_url: "/",
     display: "standalone",

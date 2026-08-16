@@ -9,7 +9,7 @@ import { useLanguage } from "@/components/providers/LanguageProvider";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { LANGUAGES, LANGUAGE_LABELS } from "@/lib/i18n";
 
-const TELEGRAM_BOT_DEEP_LINK = "https://t.me/osonNavbat_bot?start=user_mock_id_123";
+const TELEGRAM_BOT_DEEP_LINK = "https://t.me/qulaynavbat_bot?start=user_mock_id_123";
 
 export default function ProfileView() {
   const { language, setLanguage, t } = useLanguage();
@@ -63,7 +63,7 @@ export default function ProfileView() {
 
       <div className="flex flex-col gap-3">
         <a
-          href="https://t.me/osonnavbat_support"
+          href="https://t.me/qulaynavbat_support"
           target="_blank"
           rel="noopener noreferrer"
           className="btn-premium flex items-center justify-between rounded-full border border-white/50 bg-white/30 px-5 py-4 text-sm font-semibold text-foreground shadow-[0_4px_16px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/45 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] active:scale-95"

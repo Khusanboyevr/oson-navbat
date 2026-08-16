@@ -1,6 +1,6 @@
-# osonNavbat 💈
+# Qulaynavbat 💈
 
-**osonNavbat** ("EasyQueue") is a modern, mobile-first booking platform that lets people find and book barbers and salons in just a few taps — no more waiting in line for a haircut. Built as a fast, installable web app with a premium **glassmorphism** design system, it covers the full journey: discovering a barber, picking a service and time slot, confirming a booking, and managing it afterward — plus dedicated dashboards for barbers and platform admins.
+**Qulaynavbat** ("EasyQueue") is a modern, mobile-first booking platform that lets people find and book barbers and salons in just a few taps — no more waiting in line for a haircut. Built as a fast, installable web app with a premium **glassmorphism** design system, it covers the full journey: discovering a barber, picking a service and time slot, confirming a booking, and managing it afterward — plus dedicated dashboards for barbers and platform admins.
 
 The visual language — soft frosted-glass cards over a warm mesh-gradient background, Playfair Display headings paired with clean sans-serif body text, and a deep-blue/navy palette sampled directly from the brand logo — is used consistently across every screen, from the customer-facing app to both admin panels.
 
@@ -17,10 +17,10 @@ The visual language — soft frosted-glass cards over a warm mesh-gradient backg
 - Daily schedule with today's clients, pending count, and today's earnings, computed live
 - Accept / cancel / complete actions on each booking
 
-### For platform admins (`/superadmin`)
+### For platform admins (`/super-admin`)
 - Global KPIs: total customers, system-wide barbers, total revenue
 - Barber management: add, block/unblock ustas
-- Searchable customer list (`/superadmin/users`)
+- Searchable customer list (`/super-admin/users`)
 
 ## 🛠 Tech Stack
 
@@ -72,7 +72,7 @@ NEXT_PUBLIC_YANDEX_MAPS_KEY=your-key-here
 
 Get a key at [developer.tech.yandex.ru](https://developer.tech.yandex.ru/).
 
-The same file also has `NEXT_PUBLIC_SITE_URL`, used to build absolute URLs for SEO metadata (OpenGraph images, canonical links). It defaults to `https://oson-navbat.vercel.app`; override it if your deployment uses a different domain.
+The same file also has `NEXT_PUBLIC_SITE_URL`, used to build absolute URLs for SEO metadata (OpenGraph images, canonical links). It defaults to `https://oson-navbat.vercel.app` — the existing Vercel deployment's domain, unchanged by the app's rename to Qulaynavbat; override it if your deployment uses a different domain.
 
 It also has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` — see [Backend (Supabase)](#-backend-supabase) below.
 
@@ -96,7 +96,7 @@ npm run lint    # ESLint
 
 The app is ready to deploy on **[Vercel](https://vercel.com/new)** — connect the repository and add these environment variables in the project settings:
 - `NEXT_PUBLIC_YANDEX_MAPS_KEY` — enables the live map (optional)
-- `NEXT_PUBLIC_SITE_URL` — set this to your actual production URL if it differs from `https://oson-navbat.vercel.app`, so OpenGraph/social share previews resolve correctly
+- `NEXT_PUBLIC_SITE_URL` — set this to your actual production URL if it differs from `https://oson-navbat.vercel.app` (rename the Vercel project too if you want the domain itself to say "qulaynavbat"), so OpenGraph/social share previews resolve correctly
 - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — enables real auth (optional; the login flow runs in demo mode without them)
 
 ## 🗄 Backend (Supabase)
@@ -128,6 +128,6 @@ Stubs the frontend already calls, ready for a backend dev to fill in with real S
 
 ## 🔍 SEO & PWA
 
-- Per-page titles use a shared template (`Page | osonNavbat`); the barber detail page sets its title dynamically from the barber's name.
+- Per-page titles use a shared template (`Page | Qulaynavbat`); the barber detail page sets its title dynamically from the barber's name.
 - A branded OpenGraph image is generated on the fly (`app/opengraph-image.tsx`) for rich link previews on Telegram, WhatsApp, etc.
 - `app/manifest.ts` makes the app installable ("Add to Home Screen") with icons cropped from the brand mark and the app's actual theme/background colors.

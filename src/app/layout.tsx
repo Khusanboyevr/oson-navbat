@@ -19,16 +19,17 @@ const playfairDisplay = Playfair_Display({
   weight: ["600", "700", "800"],
 });
 
+// Vercel project/domain is unchanged by this rebrand — see README for how to update it.
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://oson-navbat.vercel.app";
-const SITE_NAME = "osonNavbat";
-const SITE_TITLE = "osonNavbat - Navbat kutishni unuting!";
+const SITE_NAME = "Qulaynavbat";
+const SITE_TITLE = "Qulaynavbat - Navbat kutishni unuting!";
 const SITE_DESCRIPTION = "O'zingizga yoqqan usta yoki salonni toping va bir necha soniyada joy band qiling.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: SITE_TITLE,
-    template: "%s | osonNavbat",
+    template: "%s | Qulaynavbat",
   },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,

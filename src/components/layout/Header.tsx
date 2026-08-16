@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import Logo from "@/components/layout/Logo";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import { useSlidingIndicator } from "@/hooks/useSlidingIndicator";
 import type { TranslationKey } from "@/lib/i18n";
@@ -30,9 +30,11 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/40 bg-white/60 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center" onClick={() => setIsMenuOpen(false)}>
-          <Image src="/logo.png" alt="osonNavbat" width={872} height={282} priority className="h-8 w-auto sm:h-10" />
-        </Link>
+        <Logo
+          onClick={() => setIsMenuOpen(false)}
+          iconClassName="h-8 w-auto sm:h-10"
+          textClassName="text-lg sm:text-xl"
+        />
 
         <nav
           ref={containerRef}
