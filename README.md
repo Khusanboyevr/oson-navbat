@@ -11,7 +11,8 @@ The visual language — soft frosted-glass cards over a warm mesh-gradient backg
 - **Barber profile** — bio, services, a date/time picker with simulated availability, and a running booking summary (desktop sidebar / mobile sticky bar)
 - **Booking confirmation** — a glass modal that walks through phone entry → SMS code → success, without leaving the page
 - **My Bookings** — active vs. history tabs, status pills, cancel / get-directions actions
-- **Profile** — avatar, language selector, SMS/Telegram notification toggles, support and logout
+- **Profile** — avatar, language selector, a native Web Push notification toggle, support and logout
+- **Notifications** — a bell icon in the header opens a glass dropdown with in-app notification history (reminders, cancellations); the same events also arrive as native OS push notifications, even with the app closed
 
 ### For barbers (`/admin`)
 - Daily schedule with today's clients, pending count, and today's earnings, computed live
@@ -31,6 +32,7 @@ The visual language — soft frosted-glass cards over a warm mesh-gradient backg
 - **[@pbe/react-yandex-maps](https://www.npmjs.com/package/@pbe/react-yandex-maps)** for the real map integration
 - **[Playfair Display](https://fonts.google.com/specimen/Playfair+Display)** + **[Geist](https://vercel.com/font)** via `next/font`
 - **[Supabase](https://supabase.com/)** for auth and the database (client + schema scaffolded; see [Backend](#-backend-supabase) below)
+- **[web-push](https://www.npmjs.com/package/web-push)** + the native browser Push API for notifications — no paid SMS or third-party bot required (see [Notifications](#-notifications-web-push) below)
 
 ## 📁 Project Structure
 
@@ -74,7 +76,7 @@ Get a key at [developer.tech.yandex.ru](https://developer.tech.yandex.ru/).
 
 The same file also has `NEXT_PUBLIC_SITE_URL`, used to build absolute URLs for SEO metadata (OpenGraph images, canonical links). It defaults to `https://oson-navbat.vercel.app` — the existing Vercel deployment's domain, unchanged by the app's rename to Qulaynavbat; override it if your deployment uses a different domain.
 
-It also has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` — see [Backend (Supabase)](#-backend-supabase) below.
+It also has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` — see [Backend (Supabase)](#-backend-supabase) below, and `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — see [Notifications (Web Push)](#-notifications-web-push) below.
 
 ### Run the dev server
 
@@ -98,6 +100,8 @@ The app is ready to deploy on **[Vercel](https://vercel.com/new)** — connect t
 - `NEXT_PUBLIC_YANDEX_MAPS_KEY` — enables the live map (optional)
 - `NEXT_PUBLIC_SITE_URL` — set this to your actual production URL if it differs from `https://oson-navbat.vercel.app` (rename the Vercel project too if you want the domain itself to say "qulaynavbat"), so OpenGraph/social share previews resolve correctly
 - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — enables real auth (optional; the login flow runs in demo mode without them)
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — enables real Web Push (optional; the notification toggle no-ops in demo mode without them)
+- `CRON_SECRET` — optional, checked by `/api/cron/reminders` against the `Authorization` header Vercel Cron sends automatically once this is set
 
 ## 🗄 Backend (Supabase)
 
@@ -124,7 +128,20 @@ Stubs the frontend already calls, ready for a backend dev to fill in with real S
 | Route | Methods | Notes |
 |---|---|---|
 | `/api/bookings` | `GET`, `POST` | `GET` currently returns the mock `BOOKINGS` list; `POST` echoes the submitted body back with a generated id. Response envelope: `{ status, message, data }`. |
-| `/api/auth/telegram` | `GET`, `POST` | Stub target for the Telegram Bot API webhook — Telegram POSTs an `Update` object here on every bot event. |
+| `/api/push/subscribe` | `POST` | Stores a browser's `PushSubscription` (mock, in-memory — see [Notifications](#-notifications-web-push) below). |
+| `/api/push/notify` | `POST` | Sends a `{ title, body, url?, tag? }` payload to every subscribed device. |
+| `/api/cron/reminders` | `GET` | Vercel Cron target (see `vercel.json`, every 15 min) — sends "1 hour left" reminders for today's mock bookings. |
+
+## 🔔 Notifications (Web Push)
+
+Per-user SMS and third-party bot notifications were replaced with native **Web Push** — no paid SMS provider or external Telegram bot required, and it reaches the user's device even when the app/tab is closed:
+
+- **`public/sw.js`** — the service worker. Listens for the browser's `push` event and calls `self.registration.showNotification()`; a `notificationclick` handler focuses an existing tab or opens a new one.
+- **`src/lib/push-client.ts`** — requests `Notification.requestPermission()` and subscribes via `PushManager` using `NEXT_PUBLIC_VAPID_PUBLIC_KEY`. Triggered from the Profile page's push toggle and once after a successful login. No-ops without a configured VAPID key, same demo-mode fallback as `lib/auth.ts`.
+- **`src/lib/push-server.ts`** — server-side sender built on [`web-push`](https://www.npmjs.com/package/web-push). `SUBSCRIPTIONS` is an in-memory stand-in for the `push_subscriptions` table (see `database.types.ts`); a real backend looks up the relevant rows by `user_id` before sending instead of broadcasting to everyone.
+- **In-app history** — `NotificationsProvider` keeps a notification list in `localStorage` and renders it from the bell icon in the header (glass dropdown, unread badge). The barber's "Bekor qilish" (cancel) action and the reminders cron both push into this history as well as to the device.
+
+Generate your own VAPID key pair with `npx web-push generate-vapid-keys` before deploying — the pair in `.env.local.example` is a placeholder.
 
 ## 🔍 SEO & PWA
 

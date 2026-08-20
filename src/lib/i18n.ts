@@ -21,11 +21,14 @@ export type TranslationKey =
   | "profile.settings"
   | "profile.language"
   | "profile.notifications"
-  | "profile.sms"
-  | "profile.telegram"
-  | "profile.connectTelegram"
+  | "profile.push"
+  | "profile.pushDescription"
+  | "profile.pushError"
   | "profile.support"
   | "profile.logout"
+  | "notifications.title"
+  | "notifications.empty"
+  | "notifications.markAllRead"
   | "auth.clientTitle"
   | "auth.clientSubtitle"
   | "auth.google"
@@ -61,11 +64,14 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "profile.settings": "Sozlamalar",
     "profile.language": "Tilni o'zgartirish",
     "profile.notifications": "Xabarnomalar",
-    "profile.sms": "SMS orqali",
-    "profile.telegram": "Telegram orqali",
-    "profile.connectTelegram": "Telegram Botga ulash",
+    "profile.push": "Push xabarnomalar",
+    "profile.pushDescription": "Ilova yopiq bo'lsa ham qurilmangizga bildirishnoma keladi.",
+    "profile.pushError": "Brauzer sozlamalaridan ruxsat bering.",
     "profile.support": "Yordam markazi",
     "profile.logout": "Tizimdan chiqish",
+    "notifications.title": "Xabarnomalar",
+    "notifications.empty": "Hozircha xabarnoma yo'q",
+    "notifications.markAllRead": "Barchasini o'qilgan deb belgilash",
     "auth.clientTitle": "Xush kelibsiz!",
     "auth.clientSubtitle": "Davom etish uchun tizimga kiring",
     "auth.google": "Google orqali kirish",
@@ -100,11 +106,14 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "profile.settings": "Настройки",
     "profile.language": "Изменить язык",
     "profile.notifications": "Уведомления",
-    "profile.sms": "По SMS",
-    "profile.telegram": "Через Telegram",
-    "profile.connectTelegram": "Подключить Telegram-бота",
+    "profile.push": "Push-уведомления",
+    "profile.pushDescription": "Уведомления приходят на устройство, даже если приложение закрыто.",
+    "profile.pushError": "Разрешите уведомления в настройках браузера.",
     "profile.support": "Центр поддержки",
     "profile.logout": "Выйти из системы",
+    "notifications.title": "Уведомления",
+    "notifications.empty": "Пока нет уведомлений",
+    "notifications.markAllRead": "Отметить все как прочитанные",
     "auth.clientTitle": "Добро пожаловать!",
     "auth.clientSubtitle": "Войдите, чтобы продолжить",
     "auth.google": "Войти через Google",
@@ -139,11 +148,14 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "profile.settings": "Settings",
     "profile.language": "Change language",
     "profile.notifications": "Notifications",
-    "profile.sms": "Via SMS",
-    "profile.telegram": "Via Telegram",
-    "profile.connectTelegram": "Connect Telegram Bot",
+    "profile.push": "Push notifications",
+    "profile.pushDescription": "Get notified on your device even when the app is closed.",
+    "profile.pushError": "Allow notifications in your browser settings.",
     "profile.support": "Support Center",
     "profile.logout": "Log out",
+    "notifications.title": "Notifications",
+    "notifications.empty": "No notifications yet",
+    "notifications.markAllRead": "Mark all as read",
     "auth.clientTitle": "Welcome!",
     "auth.clientSubtitle": "Sign in to continue",
     "auth.google": "Continue with Google",

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import GoogleIcon from "@/components/auth/GoogleIcon";
 import { useLanguage } from "@/components/providers/LanguageProvider";
+import { useNotifications } from "@/components/providers/NotificationsProvider";
 import { isSupabaseConfigured, requestPhoneOtp, signInWithGoogle, verifyPhoneOtp } from "@/lib/auth";
 import type { TranslationKey } from "@/lib/i18n";
 
@@ -25,6 +26,7 @@ function wait(ms: number): Promise<void> {
 
 export default function AuthForm({ role, successRoute, onStepChange }: AuthFormProps) {
   const { t } = useLanguage();
+  const { pushEnabled, enablePush } = useNotifications();
   const [step, setStep] = useState<AuthStep>("select");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
@@ -245,6 +247,9 @@ export default function AuthForm({ role, successRoute, onStepChange }: AuthFormP
 
           <Link
             href={successRoute}
+            onClick={() => {
+              if (!pushEnabled) enablePush();
+            }}
             className="btn-premium w-full rounded-full bg-primary px-5 py-3 text-center text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95"
           >
             {t("auth.continue")}

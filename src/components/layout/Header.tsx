@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import Logo from "@/components/layout/Logo";
+import NotificationBell from "@/components/layout/NotificationBell";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import { useSlidingIndicator } from "@/hooks/useSlidingIndicator";
 import type { TranslationKey } from "@/lib/i18n";
@@ -64,22 +65,26 @@ export default function Header() {
           })}
         </nav>
 
-        <Link
-          href="/login"
-          className="btn-premium hidden rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95 md:inline-block"
-        >
-          {t("nav.login")}
-        </Link>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <NotificationBell />
 
-        <button
-          type="button"
-          aria-label={isMenuOpen ? "Menyuni yopish" : "Menyuni ochish"}
-          aria-expanded={isMenuOpen}
-          onClick={() => setIsMenuOpen((open) => !open)}
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] active:scale-90 md:hidden"
-        >
-          {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
-        </button>
+          <Link
+            href="/login"
+            className="btn-premium hidden rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95 md:inline-block"
+          >
+            {t("nav.login")}
+          </Link>
+
+          <button
+            type="button"
+            aria-label={isMenuOpen ? "Menyuni yopish" : "Menyuni ochish"}
+            aria-expanded={isMenuOpen}
+            onClick={() => setIsMenuOpen((open) => !open)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-foreground transition-all duration-200 ease-in-out hover:-translate-y-[1px] active:scale-90 md:hidden"
+          >
+            {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
       </div>
 
       {isMenuOpen && (

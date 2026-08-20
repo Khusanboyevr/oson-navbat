@@ -2,19 +2,23 @@
 
 import { ChevronRight, LifeBuoy, LogOut } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-import TelegramIcon from "@/components/icons/TelegramIcon";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import { useLanguage } from "@/components/providers/LanguageProvider";
+import { useNotifications } from "@/components/providers/NotificationsProvider";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { LANGUAGES, LANGUAGE_LABELS } from "@/lib/i18n";
 
-const TELEGRAM_BOT_DEEP_LINK = "https://t.me/qulaynavbat_bot?start=user_mock_id_123";
-
 export default function ProfileView() {
   const { language, setLanguage, t } = useLanguage();
-  const [smsEnabled, setSmsEnabled] = useState(true);
-  const [telegramEnabled, setTelegramEnabled] = useState(true);
+  const { pushEnabled, pushPending, pushError, enablePush, disablePush } = useNotifications();
+
+  const handlePushToggle = (checked: boolean) => {
+    if (checked) {
+      enablePush();
+    } else {
+      disablePush();
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 py-8 sm:py-12">
@@ -42,22 +46,12 @@ export default function ProfileView() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
           <span className="text-sm font-medium text-foreground">{t("profile.notifications")}</span>
-          <ToggleSwitch label={t("profile.sms")} checked={smsEnabled} onChange={setSmsEnabled} />
-          <ToggleSwitch label={t("profile.telegram")} checked={telegramEnabled} onChange={setTelegramEnabled} />
-
-          {telegramEnabled && (
-            <a
-              href={TELEGRAM_BOT_DEEP_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-premium animate-fade-in animate-glow-pulse flex items-center justify-center gap-2 rounded-full border border-white/50 bg-white/30 px-5 py-3 text-sm font-semibold text-foreground backdrop-blur-xl transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/45 active:scale-95"
-            >
-              <TelegramIcon size={20} />
-              {t("profile.connectTelegram")}
-            </a>
-          )}
+          <ToggleSwitch label={t("profile.push")} checked={pushEnabled} onChange={handlePushToggle} />
+          <p className="text-xs text-muted-foreground">{t("profile.pushDescription")}</p>
+          {pushError && <p className="text-xs text-danger">{pushError}</p>}
+          {pushPending && <p className="text-xs text-muted-foreground">...</p>}
         </div>
       </section>
 

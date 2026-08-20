@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import localFont from "next/font/local";
 import { LanguageProvider } from "@/components/providers/LanguageProvider";
+import { NotificationsProvider } from "@/components/providers/NotificationsProvider";
 import "./globals.css";
 
 const playfairDisplay = localFont({
@@ -61,7 +62,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${GeistSans.variable} ${GeistMono.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <body className="h-full">
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider>
+          <NotificationsProvider>{children}</NotificationsProvider>
+        </LanguageProvider>
       </body>
     </html>
   );
