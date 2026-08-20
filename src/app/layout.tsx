@@ -1,22 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
+import localFont from "next/font/local";
 import { LanguageProvider } from "@/components/providers/LanguageProvider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const playfairDisplay = Playfair_Display({
+const playfairDisplay = localFont({
   variable: "--font-playfair",
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
+  src: [
+    { path: "../fonts/playfair-display-600.woff2", weight: "600", style: "normal" },
+    { path: "../fonts/playfair-display-700.woff2", weight: "700", style: "normal" },
+    { path: "../fonts/playfair-display-800.woff2", weight: "800", style: "normal" },
+  ],
 });
 
 // Vercel project/domain is unchanged by this rebrand — see README for how to update it.
@@ -63,7 +58,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="uz"
-      className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} h-full antialiased`}
+      className={`${GeistSans.variable} ${GeistMono.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <body className="h-full">
         <LanguageProvider>{children}</LanguageProvider>
