@@ -1,21 +1,26 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { isApiConfigured } from "@/lib/api-client";
+import type { AppNotification } from "@/lib/notifications";
+import { fetchNotifications, fetchUnreadCount, fetchVapidKey, markNotificationsRead } from "@/lib/notifications-api";
 import {
   getPushPermissionState,
   isPushSupported,
   subscribeToPush,
   unsubscribeFromPush,
 } from "@/lib/push-client";
-import { NOTIFICATION_STORAGE_KEY, SEED_NOTIFICATIONS, type AppNotification } from "@/lib/notifications";
 
 interface NotificationsContextValue {
   notifications: AppNotification[];
   unreadCount: number;
+  isLoading: boolean;
+  refresh: () => void;
   markAllRead: () => void;
-  addNotification: (notification: Omit<AppNotification, "id" | "createdAt" | "read">) => void;
   pushEnabled: boolean;
   pushSupported: boolean;
+  /** Whether the *backend* has VAPID keys set up — hide the push toggle entirely while false. */
+  pushConfigured: boolean;
   pushPending: boolean;
   pushError: string | null;
   enablePush: () => Promise<void>;
@@ -24,66 +29,76 @@ interface NotificationsContextValue {
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
-function loadStoredNotifications(): AppNotification[] {
-  if (typeof window === "undefined") return SEED_NOTIFICATIONS;
-  try {
-    const raw = window.localStorage.getItem(NOTIFICATION_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as AppNotification[]) : SEED_NOTIFICATIONS;
-  } catch {
-    return SEED_NOTIFICATIONS;
-  }
-}
-
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<AppNotification[]>(SEED_NOTIFICATIONS);
-  const [hasHydrated, setHasHydrated] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushConfigured, setPushConfigured] = useState(false);
+  const [vapidPublicKey, setVapidPublicKey] = useState<string | null>(null);
   const [pushPending, setPushPending] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
   const pushSupported = useMemo(() => isPushSupported(), []);
 
+  const refresh = useCallback(() => {
+    if (!isApiConfigured) return;
+    setIsLoading(true);
+    Promise.all([fetchNotifications(), fetchUnreadCount()])
+      .then(([list, count]) => {
+        setNotifications(list);
+        setUnreadCount(count);
+      })
+      .catch(() => {
+        // Backend unreachable (offline, CORS in local dev, etc.) — leave whatever
+        // history is already showing rather than blowing away the UI.
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
   useEffect(() => {
-    // One-time hydration from localStorage/Notification API, both unavailable during SSR —
-    // starting from the SEED_NOTIFICATIONS/false server-rendered state and syncing here (rather
-    // than reading them in the initializer) avoids a hydration mismatch.
+    // refresh() kicks off a fetch and sets isLoading synchronously — the sanctioned
+    // "sync from an external system on mount" case, just wrapped in a helper.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNotifications(loadStoredNotifications());
-    setHasHydrated(true);
+    refresh();
     getPushPermissionState().then((state) => setPushEnabled(state === "granted"));
     if (isPushSupported()) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
+    if (isApiConfigured) {
+      fetchVapidKey()
+        .then(({ configured, publicKey }) => {
+          setPushConfigured(configured);
+          setVapidPublicKey(publicKey);
+        })
+        .catch(() => setPushConfigured(false));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    // Guards against overwriting real localStorage data with the server-rendered
-    // SEED_NOTIFICATIONS placeholder before the hydration effect above has landed.
-    if (!hasHydrated || typeof window === "undefined") return;
-    window.localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(notifications));
-  }, [notifications, hasHydrated]);
 
   const markAllRead = useCallback(() => {
+    if (unreadCount === 0) return;
     setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })));
-  }, []);
-
-  const addNotification = useCallback((notification: Omit<AppNotification, "id" | "createdAt" | "read">) => {
-    setNotifications((prev) => [
-      { ...notification, id: `n${Date.now()}`, createdAt: new Date().toISOString(), read: false },
-      ...prev,
-    ]);
-  }, []);
+    setUnreadCount(0);
+    markNotificationsRead().catch(() => {
+      // Best-effort — a failed mark-as-read call just means the badge reappears next refresh.
+    });
+  }, [unreadCount]);
 
   const enablePush = useCallback(async () => {
+    if (!vapidPublicKey) {
+      setPushError("Push xabarnomalar hali sozlanmagan.");
+      return;
+    }
     setPushPending(true);
     setPushError(null);
-    const { error } = await subscribeToPush();
+    const { error } = await subscribeToPush(vapidPublicKey);
     setPushPending(false);
     if (error) {
       setPushError(error);
       return;
     }
     setPushEnabled(true);
-  }, []);
+  }, [vapidPublicKey]);
 
   const disablePush = useCallback(async () => {
     setPushPending(true);
@@ -92,22 +107,35 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setPushEnabled(false);
   }, []);
 
-  const unreadCount = notifications.filter((notification) => !notification.read).length;
-
   const value = useMemo<NotificationsContextValue>(
     () => ({
       notifications,
       unreadCount,
+      isLoading,
+      refresh,
       markAllRead,
-      addNotification,
       pushEnabled,
       pushSupported,
+      pushConfigured,
       pushPending,
       pushError,
       enablePush,
       disablePush,
     }),
-    [notifications, unreadCount, markAllRead, addNotification, pushEnabled, pushSupported, pushPending, pushError, enablePush, disablePush]
+    [
+      notifications,
+      unreadCount,
+      isLoading,
+      refresh,
+      markAllRead,
+      pushEnabled,
+      pushSupported,
+      pushConfigured,
+      pushPending,
+      pushError,
+      enablePush,
+      disablePush,
+    ]
   );
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;

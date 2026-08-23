@@ -22,7 +22,7 @@ const KIND_ICON_CLASS: Record<NotificationKind, string> = {
 
 export default function NotificationBell() {
   const { t } = useLanguage();
-  const { notifications, unreadCount, markAllRead } = useNotifications();
+  const { notifications, unreadCount, isLoading, refresh, markAllRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +40,10 @@ export default function NotificationBell() {
   const handleToggle = () => {
     setIsOpen((open) => {
       const next = !open;
-      if (next) markAllRead();
+      if (next) {
+        refresh();
+        markAllRead();
+      }
       return next;
     });
   };
@@ -78,7 +81,9 @@ export default function NotificationBell() {
           </div>
 
           <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {isLoading && notifications.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-muted-foreground">...</p>
+            ) : notifications.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-muted-foreground">{t("notifications.empty")}</p>
             ) : (
               <ul className="flex flex-col divide-y divide-white/30">

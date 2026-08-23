@@ -31,8 +31,9 @@ The visual language — soft frosted-glass cards over a warm mesh-gradient backg
 - **[lucide-react](https://lucide.dev/)** for icons
 - **[@pbe/react-yandex-maps](https://www.npmjs.com/package/@pbe/react-yandex-maps)** for the real map integration
 - **[Playfair Display](https://fonts.google.com/specimen/Playfair+Display)** + **[Geist](https://vercel.com/font)** via `next/font`
-- **[Supabase](https://supabase.com/)** for auth and the database (client + schema scaffolded; see [Backend](#-backend-supabase) below)
-- **[web-push](https://www.npmjs.com/package/web-push)** + the native browser Push API for notifications — no paid SMS or third-party bot required (see [Notifications](#-notifications-web-push) below)
+- **[Supabase](https://supabase.com/)** for auth and the database (client + schema scaffolded; see [Backend](#-backend-supabase) below) — being phased out in favor of the real API below as more of it comes online
+- A real **Django REST** backend at `api.qulaynavbat.uz` (cookie/CSRF-based auth) for notifications today, with `/auth/`, `/salons/`, `/barbers/`, `/bookings/`, `/reviews/` live and pending wire-up — see [Backend (Real API)](#-backend-real-api) below
+- The native browser **Push API** for notifications — no paid SMS or third-party bot required (see [Notifications](#-notifications-web-push) below)
 
 ## 📁 Project Structure
 
@@ -76,7 +77,7 @@ Get a key at [developer.tech.yandex.ru](https://developer.tech.yandex.ru/).
 
 The same file also has `NEXT_PUBLIC_SITE_URL`, used to build absolute URLs for SEO metadata (OpenGraph images, canonical links). It defaults to `https://oson-navbat.vercel.app` — the existing Vercel deployment's domain, unchanged by the app's rename to Qulaynavbat; override it if your deployment uses a different domain.
 
-It also has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` — see [Backend (Supabase)](#-backend-supabase) below, and `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — see [Notifications (Web Push)](#-notifications-web-push) below.
+It also has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` — see [Backend (Supabase)](#-backend-supabase) below, and `NEXT_PUBLIC_API_URL` — see [Backend (Real API)](#-backend-real-api) below. Note that its CORS is only open for `qulaynavbat.uz`/`www.qulaynavbat.uz`, so pointing it at the production API from `localhost` will fail; ask the backend dev for a local/staging URL for local development.
 
 ### Run the dev server
 
@@ -100,8 +101,7 @@ The app is ready to deploy on **[Vercel](https://vercel.com/new)** — connect t
 - `NEXT_PUBLIC_YANDEX_MAPS_KEY` — enables the live map (optional)
 - `NEXT_PUBLIC_SITE_URL` — set this to your actual production URL if it differs from `https://oson-navbat.vercel.app` (rename the Vercel project too if you want the domain itself to say "qulaynavbat"), so OpenGraph/social share previews resolve correctly
 - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — enables real auth (optional; the login flow runs in demo mode without them)
-- `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — enables real Web Push (optional; the notification toggle no-ops in demo mode without them)
-- `CRON_SECRET` — optional, checked by `/api/cron/reminders` against the `Authorization` header Vercel Cron sends automatically once this is set
+- `NEXT_PUBLIC_API_URL` — the real backend's base URL (required for notification history/push and any other backend-backed feature; everything no-ops without it)
 
 ## 🗄 Backend (Supabase)
 
@@ -128,20 +128,36 @@ Stubs the frontend already calls, ready for a backend dev to fill in with real S
 | Route | Methods | Notes |
 |---|---|---|
 | `/api/bookings` | `GET`, `POST` | `GET` currently returns the mock `BOOKINGS` list; `POST` echoes the submitted body back with a generated id. Response envelope: `{ status, message, data }`. |
-| `/api/push/subscribe` | `POST` | Stores a browser's `PushSubscription` (mock, in-memory — see [Notifications](#-notifications-web-push) below). |
-| `/api/push/notify` | `POST` | Sends a `{ title, body, url?, tag? }` payload to every subscribed device. |
-| `/api/cron/reminders` | `GET` | Vercel Cron target (see `vercel.json`, every 15 min) — sends "1 hour left" reminders for today's mock bookings. |
+
+Notifications used to have their own Next.js stub routes (`/api/push/*`, `/api/cron/reminders`) — those were removed once the real backend below started serving the same contract directly, so there's no longer a Next.js-side stand-in for them.
+
+## 🔌 Backend (Real API)
+
+A real Django REST backend is live at `https://api.qulaynavbat.uz/api/v1` (`NEXT_PUBLIC_API_URL`). Auth is cookie-based (httpOnly session token) rather than a bearer header, which shapes how every call to it has to be made:
+
+- **`src/lib/api-client.ts`** — the `apiFetch()` wrapper every call to the real backend goes through. Always sends `credentials: "include"`; for mutating requests (`POST`/`PUT`/`PATCH`/`DELETE`) it first hits `GET /auth/csrf/` (skipped if the `csrftoken` cookie is already set) and echoes that cookie back as the `X-CSRFToken` header, per the backend's CSRF rules. `isApiConfigured` gates every caller the same way `isSupabaseConfigured` does — nothing crashes without `NEXT_PUBLIC_API_URL` set, calls are just skipped.
+- **`src/lib/notifications-api.ts`** — typed calls for the notification endpoints (see below), built on `apiFetch`.
+
+**Live today:** `/notifications/*` (see [Notifications](#-notifications-web-push) below).
+**Backend-confirmed live, not yet wired into the frontend:** `/salons/`, `/barbers/`, `/bookings/`, `/reviews/`, `/auth/*` — the frontend still runs on `src/lib/*.ts` mock data and the Supabase demo-mode auth flow for these until their exact request/response shapes are documented (see [What the backend dev should do next](#-whats-next-for-the-backend) below).
 
 ## 🔔 Notifications (Web Push)
 
-Per-user SMS and third-party bot notifications were replaced with native **Web Push** — no paid SMS provider or external Telegram bot required, and it reaches the user's device even when the app/tab is closed:
+Per-user SMS and third-party bot notifications were replaced with native **Web Push**, backed by the real Django backend above (it uses [`pywebpush`](https://pypi.org/project/pywebpush/) server-side — same RFC 8291 + VAPID protocol, so nothing on the frontend needed to change for the switch from a Node stand-in to the real Python backend):
 
 - **`public/sw.js`** — the service worker. Listens for the browser's `push` event and calls `self.registration.showNotification()`; a `notificationclick` handler focuses an existing tab or opens a new one.
-- **`src/lib/push-client.ts`** — requests `Notification.requestPermission()` and subscribes via `PushManager` using `NEXT_PUBLIC_VAPID_PUBLIC_KEY`. Triggered from the Profile page's push toggle and once after a successful login. No-ops without a configured VAPID key, same demo-mode fallback as `lib/auth.ts`.
-- **`src/lib/push-server.ts`** — server-side sender built on [`web-push`](https://www.npmjs.com/package/web-push). `SUBSCRIPTIONS` is an in-memory stand-in for the `push_subscriptions` table (see `database.types.ts`); a real backend looks up the relevant rows by `user_id` before sending instead of broadcasting to everyone.
-- **In-app history** — `NotificationsProvider` keeps a notification list in `localStorage` and renders it from the bell icon in the header (glass dropdown, unread badge). The barber's "Bekor qilish" (cancel) action and the reminders cron both push into this history as well as to the device.
+- **`src/lib/push-client.ts`** — requests `Notification.requestPermission()` and subscribes via `PushManager`, using the VAPID public key fetched from the backend (not a frontend env var — the backend owns key generation). Triggered from the Profile page's push toggle and once after a successful login.
+- **`src/lib/notifications-api.ts`** — `fetchVapidKey()` (`GET /notifications/vapid-key/`, no auth required) returns `{ configured, publicKey }`; the Profile page's push toggle is hidden entirely while `configured` is `false`, same as the backend dev asked. `subscribeToPushBackend()` posts the raw `PushSubscription` to `POST /notifications/subscribe/`.
+- **In-app history** — `NotificationsProvider` fetches `GET /notifications/` (paginated, supports `?is_read=false`) and `GET /notifications/unread-count/` for the bell icon's badge, and marks things read via `PUT /notifications/read/` (empty body = all, `{ ids }` = specific ones). Reminders now arrive in a 45–75 minute window before the appointment (the backend's cron runs every 15 min and dedupes, rather than requiring an exact 1-hour match) — nothing on the frontend needed to change for that either.
 
-Generate your own VAPID key pair with `npx web-push generate-vapid-keys` before deploying — the pair in `.env.local.example` is a placeholder.
+The exact JSON shape of a single notification object (beyond `is_read`/`created_at`, which are pinned down) is inferred defensively in `notifications-api.ts#normalizeNotification` — double check it against the backend's `NOTIFICATIONS.md` and adjust the field names there if they don't match.
+
+## 🛠 What's next for the backend
+
+- Merge the notifications PR — `/notifications/*` is still 404ing in production as of this writing.
+- Generate and configure the backend's VAPID key pair — `/notifications/vapid-key/` currently reports `configured: false`, which hides the push toggle entirely on the frontend.
+- Share exact request/response shapes (ideally an OpenAPI/Swagger doc, or the same style of write-up as `NOTIFICATIONS.md`) for `/auth/*` (login/OTP payloads), `/salons/`, `/barbers/`, `/bookings/`, `/reviews/` — the frontend is ready to wire these in as soon as the shapes are confirmed, but won't guess at field names for anything that mutates data or handles auth.
+- Confirm a CORS exception or a staging URL usable from `localhost` — the production API only allows `qulaynavbat.uz`/`www.qulaynavbat.uz` origins, so local development can't reach it as configured today.
 
 ## 🔍 SEO & PWA
 

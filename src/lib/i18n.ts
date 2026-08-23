@@ -24,6 +24,7 @@ export type TranslationKey =
   | "profile.push"
   | "profile.pushDescription"
   | "profile.pushError"
+  | "profile.pushComingSoon"
   | "profile.support"
   | "profile.logout"
   | "notifications.title"
@@ -67,6 +68,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "profile.push": "Push xabarnomalar",
     "profile.pushDescription": "Ilova yopiq bo'lsa ham qurilmangizga bildirishnoma keladi.",
     "profile.pushError": "Brauzer sozlamalaridan ruxsat bering.",
+    "profile.pushComingSoon": "Push xabarnomalar tez orada ishga tushadi.",
     "profile.support": "Yordam markazi",
     "profile.logout": "Tizimdan chiqish",
     "notifications.title": "Xabarnomalar",
@@ -109,6 +111,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "profile.push": "Push-уведомления",
     "profile.pushDescription": "Уведомления приходят на устройство, даже если приложение закрыто.",
     "profile.pushError": "Разрешите уведомления в настройках браузера.",
+    "profile.pushComingSoon": "Push-уведомления скоро заработают.",
     "profile.support": "Центр поддержки",
     "profile.logout": "Выйти из системы",
     "notifications.title": "Уведомления",
@@ -151,6 +154,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "profile.push": "Push notifications",
     "profile.pushDescription": "Get notified on your device even when the app is closed.",
     "profile.pushError": "Allow notifications in your browser settings.",
+    "profile.pushComingSoon": "Push notifications are coming soon.",
     "profile.support": "Support Center",
     "profile.logout": "Log out",
     "notifications.title": "Notifications",

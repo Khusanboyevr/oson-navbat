@@ -4,7 +4,6 @@ import { Clock, Users, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
 import AdminBookingCard from "@/components/dashboard/AdminBookingCard";
 import StatCard from "@/components/dashboard/StatCard";
-import { useNotifications } from "@/components/providers/NotificationsProvider";
 import { formatNumber } from "@/lib/format";
 import type { ScheduleEntry, ScheduleStatus } from "@/lib/schedule";
 
@@ -18,7 +17,6 @@ function updateStatus(entries: ScheduleEntry[], id: string, status: ScheduleStat
 
 export default function DailySchedule({ initialEntries }: DailyScheduleProps) {
   const [entries, setEntries] = useState<ScheduleEntry[]>(initialEntries);
-  const { addNotification } = useNotifications();
 
   const stats = useMemo(() => {
     const clients = entries.filter((entry) => entry.status !== "cancelled").length;
@@ -31,27 +29,9 @@ export default function DailySchedule({ initialEntries }: DailyScheduleProps) {
 
   const handleConfirm = (id: string) => setEntries((prev) => updateStatus(prev, id, "confirmed"));
   const handleComplete = (id: string) => setEntries((prev) => updateStatus(prev, id, "completed"));
-
-  const handleCancel = (id: string) => {
-    setEntries((prev) => updateStatus(prev, id, "cancelled"));
-
-    const entry = entries.find((item) => item.id === id);
-    if (!entry) return;
-
-    const payload = {
-      title: "Navbat bekor qilindi",
-      body: "Ustaning ishi chiqqanligi sababli navbat bekor qilindi. Boshqa vaqt tanlang.",
-      url: "/bookings",
-      tag: `cancellation-${id}`,
-    };
-
-    addNotification({ kind: "cancellation", ...payload });
-    fetch("/api/push/notify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).catch(() => {});
-  };
+  // The real cancellation notification (in-app + push) now comes from the backend once this
+  // calls the real `bookings` cancel endpoint — this still only updates local mock state.
+  const handleCancel = (id: string) => setEntries((prev) => updateStatus(prev, id, "cancelled"));
 
   return (
     <div className="flex flex-col gap-8">

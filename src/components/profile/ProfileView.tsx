@@ -10,7 +10,7 @@ import { LANGUAGES, LANGUAGE_LABELS } from "@/lib/i18n";
 
 export default function ProfileView() {
   const { language, setLanguage, t } = useLanguage();
-  const { pushEnabled, pushPending, pushError, enablePush, disablePush } = useNotifications();
+  const { pushEnabled, pushConfigured, pushPending, pushError, enablePush, disablePush } = useNotifications();
 
   const handlePushToggle = (checked: boolean) => {
     if (checked) {
@@ -48,10 +48,16 @@ export default function ProfileView() {
 
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium text-foreground">{t("profile.notifications")}</span>
-          <ToggleSwitch label={t("profile.push")} checked={pushEnabled} onChange={handlePushToggle} />
-          <p className="text-xs text-muted-foreground">{t("profile.pushDescription")}</p>
-          {pushError && <p className="text-xs text-danger">{pushError}</p>}
-          {pushPending && <p className="text-xs text-muted-foreground">...</p>}
+          {pushConfigured ? (
+            <>
+              <ToggleSwitch label={t("profile.push")} checked={pushEnabled} onChange={handlePushToggle} />
+              <p className="text-xs text-muted-foreground">{t("profile.pushDescription")}</p>
+              {pushError && <p className="text-xs text-danger">{pushError}</p>}
+              {pushPending && <p className="text-xs text-muted-foreground">...</p>}
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">{t("profile.pushComingSoon")}</p>
+          )}
         </div>
       </section>
 

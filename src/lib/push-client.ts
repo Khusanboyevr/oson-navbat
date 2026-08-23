@@ -1,7 +1,4 @@
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
-
-/** Mirrors `isSupabaseConfigured` — true once a real VAPID key pair is set. */
-export const isPushConfigured = VAPID_PUBLIC_KEY.length > 0;
+import { subscribeToPushBackend } from "@/lib/notifications-api";
 
 export function isPushSupported(): boolean {
   return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
@@ -29,12 +26,13 @@ async function registerServiceWorker(): Promise<ServiceWorkerRegistration> {
 
 /**
  * Requests notification permission (if not already decided) and subscribes the
- * device to Web Push. In demo mode (no `NEXT_PUBLIC_VAPID_PUBLIC_KEY` set) this
- * is a no-op success, same as the Supabase auth helpers without credentials.
+ * device to Web Push, using the backend-issued VAPID public key (see
+ * `notifications-api.ts#fetchVapidKey` — the backend generates and owns this
+ * key pair now, not a frontend env var). Callers should check
+ * `fetchVapidKey().configured` first and skip calling this at all if `false`.
  */
-export async function subscribeToPush(): Promise<PushResult> {
+export async function subscribeToPush(vapidPublicKey: string): Promise<PushResult> {
   if (!isPushSupported()) return { error: "Bu brauzer push xabarnomalarni qo'llab-quvvatlamaydi." };
-  if (!isPushConfigured) return { error: null };
 
   const permission = await Notification.requestPermission();
   if (permission !== "granted") {
@@ -48,14 +46,10 @@ export async function subscribeToPush(): Promise<PushResult> {
       existing ??
       (await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       }));
 
-    await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(subscription),
-    });
+    await subscribeToPushBackend(subscription);
 
     return { error: null };
   } catch {
