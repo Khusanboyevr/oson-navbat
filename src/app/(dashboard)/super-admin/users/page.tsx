@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
-import CustomersView from "@/components/dashboard/CustomersView";
-import { CUSTOMERS } from "@/lib/adminCustomers";
+import AccessDenied from "@/components/dashboard/AccessDenied";
+import UsersView from "@/components/dashboard/UsersView";
+import { requireSuperAdmin } from "@/lib/server/session";
 
 export const metadata: Metadata = {
-  title: "Mijozlar",
+  title: "Foydalanuvchilar",
 };
 
-export default function SuperAdminUsersPage() {
-  return <CustomersView customers={CUSTOMERS} />;
+export const dynamic = "force-dynamic";
+
+export default async function SuperAdminUsersPage() {
+  if (!(await requireSuperAdmin())) return <AccessDenied />;
+  return <UsersView />;
 }

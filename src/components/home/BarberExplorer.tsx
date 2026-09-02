@@ -5,14 +5,14 @@ import BarberCard from "@/components/home/BarberCard";
 import CategoryFilters, { CATEGORIES, type CategoryOption } from "@/components/home/CategoryFilters";
 import MapView from "@/components/home/MapView";
 import ViewToggle, { type ExplorerView } from "@/components/home/ViewToggle";
-import type { Barber, BarberCategory } from "@/lib/barbers";
+import type { BarberCategoryKey, BarberProfile } from "@/lib/types";
 
 interface BarberExplorerProps {
-  barbers: Barber[];
+  barbers: BarberProfile[];
   searchQuery: string;
 }
 
-const CATEGORY_MAP: Record<CategoryOption, BarberCategory | null> = {
+const CATEGORY_MAP: Record<CategoryOption, BarberCategoryKey | null> = {
   Barchasi: null,
   Erkaklar: "erkaklar",
   Ayollar: "ayollar",

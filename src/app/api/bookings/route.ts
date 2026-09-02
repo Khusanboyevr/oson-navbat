@@ -3,10 +3,10 @@ import { BOOKINGS } from "@/lib/bookings";
 
 /**
  * Stub only — returns the same mock data the frontend already renders from
- * `lib/bookings.ts`. The backend dev replaces the body of each handler with
- * a real Supabase query against the `bookings` table (see `lib/database.types.ts`
- * for the expected row shape); the response envelope below is the contract
- * the frontend expects to keep working against.
+ * `lib/bookings.ts`. Bookings are the last flow still on mock data: once the
+ * Django backend documents `/bookings/`, these handlers proxy to it the way
+ * `src/lib/server/backend.ts` does for auth and barbers. The response envelope
+ * below is the contract the frontend expects to keep working against.
  */
 
 export async function GET() {

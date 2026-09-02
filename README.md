@@ -6,48 +6,65 @@ The visual language — soft frosted-glass cards over a warm mesh-gradient backg
 
 ## ✨ Features
 
+### Sign-in (Google only)
+Sign-in is **Google-only** — no phone number, no SMS code. `/login` renders Google's own button (Google Identity Services); the ID token it returns is verified server-side, forwarded to the Django backend's `POST /auth/google/`, and the account (name + email + photo) is created and listed in the super admin panel. See [Auth](#-auth-google-sign-in).
+
 ### For customers
-- **Home** — hero search, category filters, and a toggle between a card grid and a live **Yandex Maps** view of nearby barbers (with a styled fallback when no API key is configured)
+- **Home** — hero search, category filters, and a toggle between a card grid and a live **map** of every approved worker (Leaflet + OpenStreetMap, no API key needed). The list refreshes on a timer and on tab focus, so newly approved ustas appear without a redeploy
 - **Barber profile** — bio, services, a date/time picker with simulated availability, and a running booking summary (desktop sidebar / mobile sticky bar)
 - **Booking confirmation** — a glass modal that walks through phone entry → SMS code → success, without leaving the page
 - **My Bookings** — active vs. history tabs, status pills, cancel / get-directions actions
-- **Profile** — avatar, language selector, a native Web Push notification toggle, support and logout
-- **Notifications** — a bell icon in the header opens a glass dropdown with in-app notification history (reminders, cancellations); the same events also arrive as native OS push notifications, even with the app closed
+- **Profile** — the signed-in Google account (name, email, avatar), language selector, a native Web Push notification toggle, role shortcuts (usta schedule / super admin panel), support and logout
+- **Notifications** — a bell icon in the header opens a glass dropdown with in-app notification history; the same events also arrive as native OS push notifications, even with the app closed
+
+### For workers — usta registration (`/register/barber`)
+A dedicated public link, separate from the customer login. A 3-step form collects everything a profile needs:
+
+| Step | Fields |
+|---|---|
+| Shaxsiy ma'lumotlar | ism, familiya, telefon, email, yashash joyi |
+| Ish joyi va lokatsiya | salon nomi, manzil, **map pin** (click, drag, or "mening joylashuvim"; the address auto-fills from the pin by reverse geocoding) |
+| Kasb va xizmatlar | yo'nalish, tajriba (yil), kasb, bio, profil rasmi, xizmatlar va narxlar |
+
+The application lands in the super admin's review queue. **On approval the public profile is generated automatically from exactly this data** — profession + experience become the headline, the address and pin become the map marker, the services become the booking menu. There is no second "fill in your profile" step, and the worker's Google account is switched to the `barber` role so `/admin` opens for them.
 
 ### For barbers (`/admin`)
 - Daily schedule with today's clients, pending count, and today's earnings, computed live
 - Accept / cancel / complete actions on each booking
 
 ### For platform admins (`/super-admin`)
-- Global KPIs: total customers, system-wide barbers, total revenue
-- Barber management: add, block/unblock ustas
-- Searchable customer list (`/super-admin/users`)
+- Live KPIs: registered accounts, active ustas, pending applications, completed-booking revenue
+- **Ustalar arizalari** (`/super-admin/applications`) — every worker application with all submitted details; approve (creates the profile + map marker), reject, or delete
+- **Ustalar ro'yxati** — add a worker by hand (same form, live immediately), block/unblock, delete
+- **Foydalanuvchilar** (`/super-admin/users`) — everyone who signed in with Google; search, block/unblock, delete
 
 ## 🛠 Tech Stack
 
-- **[Next.js 16](https://nextjs.org/)** (App Router, Turbopack, route groups for distinct customer/dashboard layouts)
+- **[Next.js 16](https://nextjs.org/)** (App Router, Turbopack, route groups for distinct customer/dashboard layouts, route handlers as the app's own API layer)
 - **[React 19](https://react.dev/)** + **TypeScript**
 - **[Tailwind CSS v4](https://tailwindcss.com/)** — CSS-first theme (`globals.css`), no `tailwind.config.js` needed
 - **[lucide-react](https://lucide.dev/)** for icons
-- **[@pbe/react-yandex-maps](https://www.npmjs.com/package/@pbe/react-yandex-maps)** for the real map integration
+- **[Leaflet](https://leafletjs.com/)** + **[react-leaflet](https://react-leaflet.js.org/)** with **OpenStreetMap** tiles for the map — free, keyless, and only the pieces we need (markers, popups, a click-to-pick location field). Replaced the Yandex Maps integration, which needed an API key the project never had
 - **[Playfair Display](https://fonts.google.com/specimen/Playfair+Display)** + **[Geist](https://vercel.com/font)** via `next/font`
-- **[Supabase](https://supabase.com/)** for auth and the database (client + schema scaffolded; see [Backend](#-backend-supabase) below) — being phased out in favor of the real API below as more of it comes online
-- A real **Django REST** backend at `api.qulaynavbat.uz` (cookie/CSRF-based auth) for notifications today, with `/auth/`, `/salons/`, `/barbers/`, `/bookings/`, `/reviews/` live and pending wire-up — see [Backend (Real API)](#-backend-real-api) below
-- The native browser **Push API** for notifications — no paid SMS or third-party bot required (see [Notifications](#-notifications-web-push) below)
+- **[Google Identity Services](https://developers.google.com/identity/gsi/web)** for sign-in
+- A real **Django REST** backend at `api.qulaynavbat.uz` (cookie/CSRF-based auth) — see [Backend](#-backend-real-api)
+- The native browser **Push API** for notifications — no paid SMS or third-party bot required
 
 ## 📁 Project Structure
 
 ```
 src/
   app/
-    (customer)/      # Home, barber detail, bookings, favorites, profile — wrapped in the top-nav AppShell
-    (dashboard)/      # /admin and /superadmin — wrapped in the sidebar dashboard shell
+    (customer)/       # Home, barber detail, bookings, favorites, profile — top-nav AppShell
+    (dashboard)/      # /admin and /super-admin — sidebar dashboard shell
+    register/barber/  # Public worker (usta) registration page
+    api/              # This app's own API layer (auth, barbers, admin)
   components/
-    home/, barber/, bookings/, profile/, dashboard/, layout/, ui/
-  lib/                # Mock data + pure helper functions (dates, number formatting, etc.)
+    auth/, home/, map/, register/, barber/, bookings/, profile/, dashboard/, layout/, ui/
+  lib/
+    server/           # Server-only: store, Django bridge, session, validation
+    *.ts              # Client helpers (i18n, dates, formatting, push, google-auth)
 ```
-
-Route groups (`(customer)`, `(dashboard)`) don't affect the URL — they just let each side of the app use its own layout shell (top nav vs. sidebar) without duplicating code.
 
 ## 🚀 Getting Started
 
@@ -61,23 +78,24 @@ Route groups (`(customer)`, `(dashboard)`) don't affect the URL — they just le
 npm install
 ```
 
-### Environment variables (optional)
-
-The Home page's map view works out of the box with a styled placeholder. To enable the real interactive map, copy the example env file and add a free Yandex Maps API key:
+### Environment variables
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-```
-NEXT_PUBLIC_YANDEX_MAPS_KEY=your-key-here
-```
+| Variable | Required | What it does |
+|---|---|---|
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | ✅ | Renders Google's sign-in button. Without it the login page says so and nobody can sign in. |
+| `GOOGLE_CLIENT_ID` | ✅ | Same value; used server-side to verify the returned ID token. |
+| `NEXT_PUBLIC_API_URL` | ✅ | The Django backend base URL (`https://api.qulaynavbat.uz/api/v1`). |
+| `SUPER_ADMIN_EMAILS` | — | Comma-separated emails that get the super admin role. **If empty, the first account to sign in becomes the super admin.** |
+| `DATA_DIR` | — | Where the app's own store writes (default `<project>/.data`). |
+| `NEXT_PUBLIC_SITE_URL` | — | Production URL for SEO metadata. |
 
-Get a key at [developer.tech.yandex.ru](https://developer.tech.yandex.ru/).
+Get the Google client ID at [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials) → *Create credentials → OAuth client ID → Web application*, and add `http://localhost:3000` plus `https://qulaynavbat.uz` under **Authorized JavaScript origins**.
 
-The same file also has `NEXT_PUBLIC_SITE_URL`, used to build absolute URLs for SEO metadata (OpenGraph images, canonical links). It defaults to `https://oson-navbat.vercel.app` — the existing Vercel deployment's domain, unchanged by the app's rename to Qulaynavbat; override it if your deployment uses a different domain.
-
-It also has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` — see [Backend (Supabase)](#-backend-supabase) below, and `NEXT_PUBLIC_API_URL` — see [Backend (Real API)](#-backend-real-api) below. Note that its CORS is only open for `qulaynavbat.uz`/`www.qulaynavbat.uz`, so pointing it at the production API from `localhost` will fail; ask the backend dev for a local/staging URL for local development.
+The map needs no key at all.
 
 ### Run the dev server
 
@@ -95,69 +113,69 @@ npm run start   # serve the production build
 npm run lint    # ESLint
 ```
 
-## 📦 Deployment
+## 🔐 Auth (Google sign-in)
 
-The app is ready to deploy on **[Vercel](https://vercel.com/new)** — connect the repository and add these environment variables in the project settings:
-- `NEXT_PUBLIC_YANDEX_MAPS_KEY` — enables the live map (optional)
-- `NEXT_PUBLIC_SITE_URL` — set this to your actual production URL if it differs from `https://oson-navbat.vercel.app` (rename the Vercel project too if you want the domain itself to say "qulaynavbat"), so OpenGraph/social share previews resolve correctly
-- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — enables real auth (optional; the login flow runs in demo mode without them)
-- `NEXT_PUBLIC_API_URL` — the real backend's base URL (required for notification history/push and any other backend-backed feature; everything no-ops without it)
+1. `/login` renders Google's button via `src/lib/google-auth.ts` → `GoogleSignInButton`.
+2. Google returns an ID token (JWT) to the browser, which POSTs it to `POST /api/auth/google`.
+3. That route verifies the token against Google (`oauth2.googleapis.com/tokeninfo`, checking audience, issuer, expiry and `email_verified`), so a token minted for another app is rejected.
+4. It forwards the same token to the backend's `POST /auth/google/` and mirrors the Django session cookie server-side (`qn_backend`, httpOnly).
+5. It creates/updates the local account and issues the app's own session cookie (`qn_session`, httpOnly).
 
-## 🗄 Backend (Supabase)
+**The backend's `GOOGLE_CLIENT_ID` is currently unset** — `POST /auth/google/` answers `{"detail": "GOOGLE_CLIENT_ID sozlanmagan."}`. Until the backend dev sets it (to the same client ID), sign-in still works: the account is created locally and flagged `syncedWithBackend: false`, which the super admin panel shows as "faqat lokal". Nothing else has to change once it's configured.
 
-The app currently runs entirely on mock data (`src/lib/*.ts`) — Supabase is wired in but optional until you connect a real project:
+Roles: `client` → `/`, `barber` → `/admin`, `superadmin` → `/super-admin`. Super-admin pages and every `/api/admin/*` route check the role server-side.
 
-- **`src/lib/supabase.ts`** — the client. `isSupabaseConfigured` is `false` (and `supabase` is `null`) until both env vars above are set, so nothing crashes without credentials.
-- **`src/lib/database.types.ts`** — hand-written to match the shape `supabase gen types typescript` produces, so it's a drop-in replacement once you generate real types from your project.
-- **`src/lib/auth.ts`** — `signInWithGoogle`, `requestPhoneOtp`, `verifyPhoneOtp`, already wired to the `/login` UI. Every call is a no-op success in demo mode.
+## 🗄 Data & API routes
 
-### Schema
+The Django backend can't yet store users, applications, or barbers (see below), so this app runs its own thin backend-for-frontend:
 
-| Table | Purpose | Key columns |
-|---|---|---|
-| `profiles` | One row per authenticated user (client, barber, or super admin) | `id` (matches `auth.users.id`), `phone`, `name`, `role` |
-| `barbers` | A barbershop/salon profile, owned by a `profiles` row | `user_id` → `profiles.id`, `name`, `specialty`, `category`, `status`, `rating`, `location`, `lat`/`lng` |
-| `bookings` | An appointment | `client_id` → `profiles.id`, `barber_id` → `barbers.id`, `date`, `time`, `service`, `price`, `status` |
+- **`src/lib/server/store.ts`** — persistence (users, sessions, worker applications, barber profiles) in a JSON file under `DATA_DIR`, written atomically and re-read whenever the file changes on disk. It is deliberately a single module with a small API, so swapping it for SQL/Supabase — or deleting it once the Django endpoints exist — touches nothing else. On a serverless host `DATA_DIR` must point at a real volume.
+- **`src/lib/server/backend.ts`** — the bridge to `api.qulaynavbat.uz`. Every write tries the backend first and reports whether it took; reads merge backend rows with local ones. Calling it from the server also sidesteps the backend's CORS allowlist, so `localhost` development works.
+- **`src/lib/server/session.ts`** — cookie session + `requireSuperAdmin()` guard.
+- **`src/lib/server/validation.ts`** — one validator shared by public registration and admin-side creation.
 
-To go live: create these tables in your Supabase project (matching `database.types.ts`), enable Row Level Security, add a Google provider and phone/SMS provider under Authentication, and add an `/auth/callback` route to complete the Google OAuth redirect.
+| Route | Methods | Auth | Notes |
+|---|---|---|---|
+| `/api/auth/google` | `POST` | — | Verify Google ID token, create session |
+| `/api/auth/session` | `GET` | — | Current user (or `null`) |
+| `/api/auth/logout` | `POST` | — | Clears both cookies, logs out of Django |
+| `/api/barbers` | `GET` | — | Public list: local approved + backend `/barbers/` |
+| `/api/barbers/apply` | `POST` | — | Worker application (status `pending`) |
+| `/api/admin/applications` | `GET` | super admin | Review queue |
+| `/api/admin/applications/[id]` | `PATCH`, `DELETE` | super admin | Approve/reject; delete |
+| `/api/admin/barbers` | `GET`, `POST` | super admin | List all; add manually |
+| `/api/admin/barbers/[id]` | `PATCH`, `DELETE` | super admin | Block/unblock; delete (backend-owned rows are read-only) |
+| `/api/admin/users` | `GET` | super admin | Everyone who signed in |
+| `/api/admin/users/[id]` | `PATCH`, `DELETE` | super admin | Block/unblock, change role; delete |
+| `/api/bookings` | `GET`, `POST` | — | Still a stub over mock booking data |
 
-### API routes
-
-Stubs the frontend already calls, ready for a backend dev to fill in with real Supabase queries:
-
-| Route | Methods | Notes |
-|---|---|---|
-| `/api/bookings` | `GET`, `POST` | `GET` currently returns the mock `BOOKINGS` list; `POST` echoes the submitted body back with a generated id. Response envelope: `{ status, message, data }`. |
-
-Notifications used to have their own Next.js stub routes (`/api/push/*`, `/api/cron/reminders`) — those were removed once the real backend below started serving the same contract directly, so there's no longer a Next.js-side stand-in for them.
+Bookings are the one flow still running on mock data (`src/lib/bookings.ts`) — everything auth-, worker- and map-related is real.
 
 ## 🔌 Backend (Real API)
 
-A real Django REST backend is live at `https://api.qulaynavbat.uz/api/v1` (`NEXT_PUBLIC_API_URL`). Auth is cookie-based (httpOnly session token) rather than a bearer header, which shapes how every call to it has to be made:
+`https://api.qulaynavbat.uz/api/v1`, Django REST, cookie-based auth (httpOnly session + CSRF).
 
-- **`src/lib/api-client.ts`** — the `apiFetch()` wrapper every call to the real backend goes through. Always sends `credentials: "include"`; for mutating requests (`POST`/`PUT`/`PATCH`/`DELETE`) it first hits `GET /auth/csrf/` (skipped if the `csrftoken` cookie is already set) and echoes that cookie back as the `X-CSRFToken` header, per the backend's CSRF rules. `isApiConfigured` gates every caller the same way `isSupabaseConfigured` does — nothing crashes without `NEXT_PUBLIC_API_URL` set, calls are just skipped.
-- **`src/lib/notifications-api.ts`** — typed calls for the notification endpoints (see below), built on `apiFetch`.
+- **`src/lib/api-client.ts`** — the browser-side wrapper (used by notifications): `credentials: "include"` on every request, and the CSRF dance (`GET /auth/csrf/`, echo `X-CSRFToken`) on every mutation.
+- **`src/lib/server/backend.ts`** — the server-side equivalent, used for auth and barbers.
 
-**Live today:** `/notifications/*` (see [Notifications](#-notifications-web-push) below).
-**Backend-confirmed live, not yet wired into the frontend:** `/salons/`, `/barbers/`, `/bookings/`, `/reviews/`, `/auth/*` — the frontend still runs on `src/lib/*.ts` mock data and the Supabase demo-mode auth flow for these until their exact request/response shapes are documented (see [What the backend dev should do next](#-whats-next-for-the-backend) below).
+**Verified live:** `/auth/csrf/`, `/auth/me/`, `/auth/google/` (POST, needs `id_token`), `/auth/logout/`, `/auth/refresh/`, `/notifications/*`, and read-only `/salons/`, `/barbers/`, `/reviews/` (all currently empty).
 
 ## 🔔 Notifications (Web Push)
 
-Per-user SMS and third-party bot notifications were replaced with native **Web Push**, backed by the real Django backend above (it uses [`pywebpush`](https://pypi.org/project/pywebpush/) server-side — same RFC 8291 + VAPID protocol, so nothing on the frontend needed to change for the switch from a Node stand-in to the real Python backend):
+Native **Web Push**, backed by the Django backend ([`pywebpush`](https://pypi.org/project/pywebpush/) server-side):
 
-- **`public/sw.js`** — the service worker. Listens for the browser's `push` event and calls `self.registration.showNotification()`; a `notificationclick` handler focuses an existing tab or opens a new one.
-- **`src/lib/push-client.ts`** — requests `Notification.requestPermission()` and subscribes via `PushManager`, using the VAPID public key fetched from the backend (not a frontend env var — the backend owns key generation). Triggered from the Profile page's push toggle and once after a successful login.
-- **`src/lib/notifications-api.ts`** — `fetchVapidKey()` (`GET /notifications/vapid-key/`, no auth required) returns `{ configured, publicKey }`; the Profile page's push toggle is hidden entirely while `configured` is `false`, same as the backend dev asked. `subscribeToPushBackend()` posts the raw `PushSubscription` to `POST /notifications/subscribe/`.
-- **In-app history** — `NotificationsProvider` fetches `GET /notifications/` (paginated, supports `?is_read=false`) and `GET /notifications/unread-count/` for the bell icon's badge, and marks things read via `PUT /notifications/read/` (empty body = all, `{ ids }` = specific ones). Reminders now arrive in a 45–75 minute window before the appointment (the backend's cron runs every 15 min and dedupes, rather than requiring an exact 1-hour match) — nothing on the frontend needed to change for that either.
-
-The exact JSON shape of a single notification object (beyond `is_read`/`created_at`, which are pinned down) is inferred defensively in `notifications-api.ts#normalizeNotification` — double check it against the backend's `NOTIFICATIONS.md` and adjust the field names there if they don't match.
+- **`public/sw.js`** — service worker: shows the notification on `push`, focuses/opens a tab on `notificationclick`
+- **`src/lib/push-client.ts`** — permission + `PushManager` subscription, using the VAPID public key fetched from the backend (`GET /notifications/vapid-key/`, now reporting `configured: true`)
+- **`src/lib/notifications-api.ts`** — history (`GET /notifications/`), unread count, mark-as-read, subscribe
+- Reminders arrive in a 45–75 minute window before the appointment (the backend's cron runs every 15 min and dedupes)
 
 ## 🛠 What's next for the backend
 
-- Merge the notifications PR — `/notifications/*` is still 404ing in production as of this writing.
-- Generate and configure the backend's VAPID key pair — `/notifications/vapid-key/` currently reports `configured: false`, which hides the push toggle entirely on the frontend.
-- Share exact request/response shapes (ideally an OpenAPI/Swagger doc, or the same style of write-up as `NOTIFICATIONS.md`) for `/auth/*` (login/OTP payloads), `/salons/`, `/barbers/`, `/bookings/`, `/reviews/` — the frontend is ready to wire these in as soon as the shapes are confirmed, but won't guess at field names for anything that mutates data or handles auth.
-- Confirm a CORS exception or a staging URL usable from `localhost` — the production API only allows `qulaynavbat.uz`/`www.qulaynavbat.uz` origins, so local development can't reach it as configured today.
+1. **Set `GOOGLE_CLIENT_ID`** on the backend to the same OAuth client ID the frontend uses — that alone makes every Google sign-in land in the Django database instead of only locally.
+2. **Add a worker/barber write endpoint** — `POST /barbers/` (or `/salons/`) is `405` today. The frontend already posts the full payload on every approval (`pushBarberToBackend` in `src/lib/server/backend.ts`: name, salon, specialty, category, phone, email, address, residence, latitude/longitude, experience, bio, services) and records whether it succeeded, so it starts syncing the moment the endpoint accepts it.
+3. **Add a users list endpoint** (`GET /auth/users/` or similar, staff-only) so the super admin panel can read accounts from the backend instead of the local store.
+4. **Optionally an applications endpoint**, if worker applications should live server-side rather than in this app's store.
+5. Share exact request/response shapes (OpenAPI/Swagger) for `/bookings/`, `/reviews/`, `/salons/` — bookings are the last flow still on mock data.
 
 ## 🔍 SEO & PWA
 

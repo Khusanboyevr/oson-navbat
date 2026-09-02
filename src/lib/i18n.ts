@@ -31,25 +31,12 @@ export type TranslationKey =
   | "notifications.empty"
   | "notifications.markAllRead"
   | "auth.clientTitle"
-  | "auth.clientSubtitle"
+  | "auth.googleOnly"
   | "auth.google"
-  | "auth.phone"
-  | "auth.phonePlaceholder"
-  | "auth.getCode"
-  | "auth.sending"
-  | "auth.enterCode"
-  | "auth.codeSentTo"
-  | "auth.verify"
-  | "auth.checking"
-  | "auth.back"
   | "auth.successTitle"
-  | "auth.successSubtitleClient"
-  | "auth.successSubtitleBarber"
   | "auth.continue"
   | "auth.barberCta"
-  | "auth.barberTitle"
-  | "auth.barberSubtitle"
-  | "auth.clientCta";
+  | "auth.barberHint";
 
 export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
   uz: {
@@ -75,25 +62,12 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "notifications.empty": "Hozircha xabarnoma yo'q",
     "notifications.markAllRead": "Barchasini o'qilgan deb belgilash",
     "auth.clientTitle": "Xush kelibsiz!",
-    "auth.clientSubtitle": "Davom etish uchun tizimga kiring",
+    "auth.googleOnly": "Google hisobingiz orqali bir bosishda kiring - SMS yoki telefon raqam kerak emas.",
     "auth.google": "Google orqali kirish",
-    "auth.phone": "Telefon raqam orqali",
-    "auth.phonePlaceholder": "+998 90 123 45 67",
-    "auth.getCode": "Kodni olish",
-    "auth.sending": "Yuborilmoqda...",
-    "auth.enterCode": "SMS kodni kiriting",
-    "auth.codeSentTo": "Raqamingizga 4 xonali kod yuborildi.",
-    "auth.verify": "Tasdiqlash",
-    "auth.checking": "Tekshirilmoqda...",
-    "auth.back": "Orqaga",
     "auth.successTitle": "Muvaffaqiyatli kirdingiz!",
-    "auth.successSubtitleClient": "Endi ustalarni topib, bron qilishingiz mumkin.",
-    "auth.successSubtitleBarber": "Endi bugungi jadvalingizni boshqarishingiz mumkin.",
     "auth.continue": "Davom etish",
-    "auth.barberCta": "Sartaroshmisiz? Bizga qo'shiling",
-    "auth.barberTitle": "Usta sifatida kirish",
-    "auth.barberSubtitle": "Mijozlaringizni onlayn qabul qilishni boshlang",
-    "auth.clientCta": "Mijoz sifatida kirish",
+    "auth.barberCta": "Usta bo'lib ro'yxatdan o'tish",
+    "auth.barberHint": "Sartarosh yoki go'zallik ustasimisiz? Alohida ariza to'ldiring.",
   },
   ru: {
     "nav.home": "Главная",
@@ -118,25 +92,12 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "notifications.empty": "Пока нет уведомлений",
     "notifications.markAllRead": "Отметить все как прочитанные",
     "auth.clientTitle": "Добро пожаловать!",
-    "auth.clientSubtitle": "Войдите, чтобы продолжить",
+    "auth.googleOnly": "Войдите одним нажатием через аккаунт Google - без SMS и номера телефона.",
     "auth.google": "Войти через Google",
-    "auth.phone": "По номеру телефона",
-    "auth.phonePlaceholder": "+998 90 123 45 67",
-    "auth.getCode": "Получить код",
-    "auth.sending": "Отправка...",
-    "auth.enterCode": "Введите SMS-код",
-    "auth.codeSentTo": "На ваш номер отправлен 4-значный код.",
-    "auth.verify": "Подтвердить",
-    "auth.checking": "Проверка...",
-    "auth.back": "Назад",
     "auth.successTitle": "Вы успешно вошли!",
-    "auth.successSubtitleClient": "Теперь вы можете найти мастера и забронировать место.",
-    "auth.successSubtitleBarber": "Теперь вы можете управлять своим расписанием.",
     "auth.continue": "Продолжить",
-    "auth.barberCta": "Вы мастер? Присоединяйтесь к нам",
-    "auth.barberTitle": "Вход для мастеров",
-    "auth.barberSubtitle": "Начните принимать клиентов онлайн",
-    "auth.clientCta": "Войти как клиент",
+    "auth.barberCta": "Зарегистрироваться как мастер",
+    "auth.barberHint": "Вы мастер или бьюти-специалист? Заполните отдельную заявку.",
   },
   en: {
     "nav.home": "Home",
@@ -161,24 +122,11 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "notifications.empty": "No notifications yet",
     "notifications.markAllRead": "Mark all as read",
     "auth.clientTitle": "Welcome!",
-    "auth.clientSubtitle": "Sign in to continue",
+    "auth.googleOnly": "Sign in with your Google account in one tap - no SMS, no phone number.",
     "auth.google": "Continue with Google",
-    "auth.phone": "Continue with phone",
-    "auth.phonePlaceholder": "+998 90 123 45 67",
-    "auth.getCode": "Get code",
-    "auth.sending": "Sending...",
-    "auth.enterCode": "Enter the SMS code",
-    "auth.codeSentTo": "A 4-digit code was sent to your number.",
-    "auth.verify": "Verify",
-    "auth.checking": "Checking...",
-    "auth.back": "Back",
     "auth.successTitle": "You're signed in!",
-    "auth.successSubtitleClient": "You can now find a barber and book a slot.",
-    "auth.successSubtitleBarber": "You can now manage your daily schedule.",
     "auth.continue": "Continue",
-    "auth.barberCta": "Are you a barber? Join us",
-    "auth.barberTitle": "Sign in as a barber",
-    "auth.barberSubtitle": "Start accepting clients online",
-    "auth.clientCta": "Sign in as a client",
+    "auth.barberCta": "Register as a barber",
+    "auth.barberHint": "Are you a barber or beauty professional? Fill in the separate application.",
   },
 };

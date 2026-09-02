@@ -1,11 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import MapPlaceholder from "@/components/home/MapPlaceholder";
-import type { Barber } from "@/lib/barbers";
-import { YANDEX_MAPS_API_KEY } from "@/lib/map";
+import type { BarberProfile } from "@/lib/types";
 
-const YandexMap = dynamic(() => import("@/components/home/YandexMap"), {
+// Leaflet touches `window` on import, so the map only ever loads in the browser.
+const BarberMap = dynamic(() => import("@/components/map/BarberMap"), {
   ssr: false,
   loading: () => (
     <div className="flex h-[420px] w-full items-center justify-center rounded-3xl border border-white/30 bg-white/15 text-sm text-muted-foreground backdrop-blur-xl sm:h-[540px]">
@@ -15,13 +14,9 @@ const YandexMap = dynamic(() => import("@/components/home/YandexMap"), {
 });
 
 interface MapViewProps {
-  barbers: Barber[];
+  barbers: BarberProfile[];
 }
 
 export default function MapView({ barbers }: MapViewProps) {
-  if (!YANDEX_MAPS_API_KEY) {
-    return <MapPlaceholder barbers={barbers} />;
-  }
-
-  return <YandexMap barbers={barbers} />;
+  return <BarberMap barbers={barbers} />;
 }
