@@ -1,6 +1,10 @@
 import HomeContent from "@/components/home/HomeContent";
-import { BARBERS } from "@/lib/barbers";
+import { getPublicBarbers } from "@/lib/server/barbers-service";
 
-export default function HomePage() {
-  return <HomeContent barbers={BARBERS} />;
+// Approved workers appear the moment they're approved, so this page can't be static.
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const barbers = await getPublicBarbers();
+  return <HomeContent initialBarbers={barbers} />;
 }

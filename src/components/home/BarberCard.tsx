@@ -1,21 +1,30 @@
 import { MapPin, Star } from "lucide-react";
 import Link from "next/link";
-import type { Barber } from "@/lib/barbers";
+import type { BarberProfile } from "@/lib/types";
 
 interface BarberCardProps {
-  barber: Barber;
+  barber: BarberProfile;
 }
 
 export default function BarberCard({ barber }: BarberCardProps) {
   return (
     <div className="flex flex-col gap-4 rounded-3xl border border-white/30 bg-white/20 p-5 shadow-[0_4px_30px_rgba(0,0,0,0.1)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:bg-white/30 hover:shadow-[0_8px_40px_rgba(0,0,0,0.15)]">
       <div className="flex items-center gap-3">
-        <div
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-semibold text-white"
-          style={{ backgroundColor: barber.avatarColor }}
-        >
-          {barber.name.charAt(0)}
-        </div>
+        {barber.photo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- stored as a data URL, not a remote asset
+          <img
+            src={barber.photo}
+            alt={barber.name}
+            className="h-14 w-14 shrink-0 rounded-2xl object-cover"
+          />
+        ) : (
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-semibold text-white"
+            style={{ backgroundColor: barber.avatarColor }}
+          >
+            {barber.name.charAt(0)}
+          </div>
+        )}
         <div className="min-w-0">
           <h3 className="truncate text-base font-semibold text-foreground">{barber.name}</h3>
           <p className="truncate text-xs text-muted-foreground">{barber.specialty}</p>
@@ -25,7 +34,7 @@ export default function BarberCard({ barber }: BarberCardProps) {
       <div className="flex items-center justify-between text-sm">
         <span className="flex items-center gap-1 font-medium text-foreground">
           <Star size={14} className="fill-accent text-accent" />
-          {barber.rating.toFixed(1)}
+          {barber.rating > 0 ? barber.rating.toFixed(1) : "Yangi"}
         </span>
         <span className="flex items-center gap-1 text-muted-foreground">
           <MapPin size={14} />

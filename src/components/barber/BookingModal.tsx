@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, X } from "lucide-react";
+import { Check, Loader2, LogIn, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useState } from "react";
+import { useSession } from "@/components/providers/SessionProvider";
 
 interface BookingModalSummary {
   serviceName: string;
@@ -17,16 +18,18 @@ interface BookingModalProps {
   summary: BookingModalSummary;
 }
 
-type Step = "phone" | "otp" | "success";
-
-const OTP_LENGTH = 4;
-
+/**
+ * Booking confirmation.
+ *
+ * The customer is already identified by their Google account, so this asks for
+ * nothing — no phone number, no SMS code. Signed-out visitors are sent to sign in
+ * first.
+ */
 export default function BookingModal({ isOpen, onClose, summary }: BookingModalProps) {
-  const [step, setStep] = useState<Step>("phone");
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
+  const { user, isLoading } = useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const [isDone, setIsDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -47,43 +50,31 @@ export default function BookingModal({ isOpen, onClose, summary }: BookingModalP
 
   if (!isOpen) return null;
 
-  const isPhoneValid = phone.trim().length >= 9;
-  const isOtpComplete = otp.every((digit) => digit.length === 1);
-
-  const handleGetCode = () => {
-    if (!isPhoneValid || isSubmitting) return;
+  const handleConfirm = async () => {
+    if (isSubmitting) return;
     setIsSubmitting(true);
-    setTimeout(() => {
+    setError(null);
+
+    try {
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceName: summary.serviceName,
+          dateLabel: summary.dateLabel,
+          time: summary.time,
+        }),
+      });
+      if (!response.ok) {
+        setError("Bronni saqlab bo'lmadi, qaytadan urinib ko'ring");
+        return;
+      }
+      setIsDone(true);
+    } catch {
+      setError("Tarmoq xatosi — internetni tekshiring");
+    } finally {
       setIsSubmitting(false);
-      setStep("otp");
-    }, 600);
-  };
-
-  const handleOtpChange = (index: number, value: string) => {
-    const digit = value.replace(/\D/g, "").slice(-1);
-    setOtp((prev) => {
-      const next = [...prev];
-      next[index] = digit;
-      return next;
-    });
-    if (digit && index < OTP_LENGTH - 1) {
-      otpRefs.current[index + 1]?.focus();
     }
-  };
-
-  const handleOtpKeyDown = (index: number, event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Backspace" && !otp[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleVerify = () => {
-    if (!isOtpComplete || isSubmitting) return;
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setStep("success");
-    }, 600);
   };
 
   return (
@@ -105,12 +96,12 @@ export default function BookingModal({ isOpen, onClose, summary }: BookingModalP
           <X size={16} />
         </button>
 
-        {step === "phone" && (
+        {!isDone && (
           <div className="flex flex-col gap-5">
             <div>
-              <h2 className="font-serif text-xl font-bold text-foreground">Tasdiqlash</h2>
+              <h2 className="font-serif text-xl font-bold text-foreground">Bronni tasdiqlang</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Bronni tasdiqlash uchun telefon raqamingizni kiriting.
+                {user ? `${user.name} nomidan band qilinadi.` : "Davom etish uchun hisobingizga kiring."}
               </p>
             </div>
 
@@ -118,63 +109,40 @@ export default function BookingModal({ isOpen, onClose, summary }: BookingModalP
               {summary.serviceName} • {summary.dateLabel}, {summary.time} • {summary.priceLabel}
             </p>
 
-            <input
-              type="tel"
-              inputMode="tel"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="+998 90 123 45 67"
-              className="w-full rounded-2xl border border-white/40 bg-white/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
+            {error && (
+              <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-2.5 text-center text-xs text-danger">
+                {error}
+              </p>
+            )}
 
-            <button
-              type="button"
-              onClick={handleGetCode}
-              disabled={!isPhoneValid || isSubmitting}
-              className="btn-premium w-full rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground shadow-[0_4px_16px_rgba(4,20,73,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-[0_8px_24px_rgba(4,20,73,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
-            >
-              {isSubmitting ? "Yuborilmoqda..." : "Kodni olish"}
-            </button>
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground">
+                <Loader2 size={16} className="animate-spin" />
+                Yuklanmoqda...
+              </span>
+            ) : user ? (
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={isSubmitting}
+                className="btn-premium flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground shadow-[0_4px_16px_rgba(4,20,73,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-[0_8px_24px_rgba(4,20,73,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                {isSubmitting ? "Band qilinmoqda..." : "Tasdiqlash"}
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="btn-premium flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-center text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover active:scale-95"
+              >
+                <LogIn size={16} />
+                Google orqali kirish
+              </Link>
+            )}
           </div>
         )}
 
-        {step === "otp" && (
-          <div className="flex flex-col gap-5">
-            <div>
-              <h2 className="font-serif text-xl font-bold text-foreground">SMS kodni kiriting</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Raqamingizga 4 xonali kod yuborildi.</p>
-            </div>
-
-            <div className="flex items-center justify-center gap-3">
-              {otp.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(el) => {
-                    otpRefs.current[index] = el;
-                  }}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(event) => handleOtpChange(index, event.target.value)}
-                  onKeyDown={(event) => handleOtpKeyDown(index, event)}
-                  className="h-14 w-14 rounded-2xl border border-white/40 bg-white/40 text-center text-xl font-bold text-foreground backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleVerify}
-              disabled={!isOtpComplete || isSubmitting}
-              className="btn-premium w-full rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground shadow-[0_4px_16px_rgba(4,20,73,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-[0_8px_24px_rgba(4,20,73,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
-            >
-              {isSubmitting ? "Tekshirilmoqda..." : "Tasdiqlash"}
-            </button>
-          </div>
-        )}
-
-        {step === "success" && (
+        {isDone && (
           <div className="flex flex-col items-center gap-4 text-center">
             <span className="flex h-20 w-20 animate-check-pop items-center justify-center rounded-full bg-primary/15 text-primary">
               <Check size={40} strokeWidth={3} />

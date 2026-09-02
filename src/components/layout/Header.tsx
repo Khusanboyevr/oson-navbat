@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react";
 import Logo from "@/components/layout/Logo";
 import NotificationBell from "@/components/layout/NotificationBell";
 import { useLanguage } from "@/components/providers/LanguageProvider";
+import { useSession } from "@/components/providers/SessionProvider";
 import { useSlidingIndicator } from "@/hooks/useSlidingIndicator";
 import type { TranslationKey } from "@/lib/i18n";
 
@@ -24,6 +25,7 @@ function getActiveHref(pathname: string): string {
 export default function Header() {
   const pathname = usePathname();
   const { t } = useLanguage();
+  const { user } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const activeHref = getActiveHref(pathname);
   const { containerRef, registerItem, style: indicatorStyle } = useSlidingIndicator(activeHref);
@@ -68,12 +70,29 @@ export default function Header() {
         <div className="flex items-center gap-1 sm:gap-2">
           <NotificationBell />
 
-          <Link
-            href="/login"
-            className="btn-premium hidden rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95 md:inline-block"
-          >
-            {t("nav.login")}
-          </Link>
+          {user ? (
+            <Link
+              href="/profile"
+              className="hidden items-center gap-2 rounded-full border border-white/50 bg-white/30 py-1.5 pl-1.5 pr-4 text-sm font-semibold text-foreground backdrop-blur-xl transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/50 active:scale-95 md:inline-flex"
+            >
+              {user.picture ? (
+                // eslint-disable-next-line @next/next/no-img-element -- Google avatar URL
+                <img src={user.picture} alt="" className="h-8 w-8 rounded-full object-cover" />
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                  {user.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+              <span className="max-w-[10rem] truncate">{user.name}</span>
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="btn-premium hidden rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95 md:inline-block"
+            >
+              {t("nav.login")}
+            </Link>
+          )}
 
           <button
             type="button"
@@ -106,11 +125,11 @@ export default function Header() {
               );
             })}
             <Link
-              href="/login"
+              href={user ? "/profile" : "/login"}
               onClick={() => setIsMenuOpen(false)}
               className="btn-premium mt-2 rounded-full bg-primary px-5 py-2.5 text-center text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_24px_rgba(20,94,229,0.45)] active:scale-95"
             >
-              {t("nav.login")}
+              {user ? user.name : t("nav.login")}
             </Link>
           </nav>
         </div>

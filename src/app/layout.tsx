@@ -4,6 +4,7 @@ import { GeistMono } from "geist/font/mono";
 import localFont from "next/font/local";
 import { LanguageProvider } from "@/components/providers/LanguageProvider";
 import { NotificationsProvider } from "@/components/providers/NotificationsProvider";
+import { SessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";
 
 const playfairDisplay = localFont({
@@ -62,9 +63,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${GeistSans.variable} ${GeistMono.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <body className="h-full">
-        <LanguageProvider>
-          <NotificationsProvider>{children}</NotificationsProvider>
-        </LanguageProvider>
+        <SessionProvider>
+          <LanguageProvider>
+            <NotificationsProvider>{children}</NotificationsProvider>
+          </LanguageProvider>
+        </SessionProvider>
       </body>
     </html>
   );

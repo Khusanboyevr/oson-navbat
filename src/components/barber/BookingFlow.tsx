@@ -7,10 +7,10 @@ import DateTimePicker from "@/components/barber/DateTimePicker";
 import ServiceList from "@/components/barber/ServiceList";
 import { formatDateLabel, getTashkentTodayIso } from "@/lib/dates";
 import { formatNumber } from "@/lib/format";
-import type { Barber } from "@/lib/barbers";
+import type { BarberProfile } from "@/lib/types";
 
 interface BookingFlowProps {
-  barber: Barber;
+  barber: BarberProfile;
 }
 
 export default function BookingFlow({ barber }: BookingFlowProps) {

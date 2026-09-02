@@ -3,10 +3,9 @@
 import {
   ArrowLeft,
   CalendarDays,
+  ClipboardList,
   LayoutDashboard,
   Menu,
-  Scissors,
-  Settings,
   Users,
   Wallet,
   X,
@@ -33,9 +32,8 @@ const ROLE_CONFIG: Record<"admin" | "superadmin", RoleConfig> = {
     title: "Super Admin",
     links: [
       { label: "Dashboard", href: "/super-admin", icon: LayoutDashboard },
-      { label: "Ustalar", icon: Scissors },
-      { label: "Mijozlar", href: "/super-admin/users", icon: Users },
-      { label: "Sozlamalar", icon: Settings },
+      { label: "Ustalar arizalari", href: "/super-admin/applications", icon: ClipboardList },
+      { label: "Foydalanuvchilar", href: "/super-admin/users", icon: Users },
     ],
   },
   admin: {

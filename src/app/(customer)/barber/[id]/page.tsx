@@ -4,15 +4,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import BarberHeader from "@/components/barber/BarberHeader";
 import BookingFlow from "@/components/barber/BookingFlow";
-import { getBarberById } from "@/lib/barbers";
+import { getPublicBarberById } from "@/lib/server/barbers-service";
 
 interface BarberDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
+// Profiles are created by approval at runtime, so this page is always fresh.
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({ params }: BarberDetailPageProps): Promise<Metadata> {
   const { id } = await params;
-  const barber = getBarberById(id);
+  const barber = await getPublicBarberById(id);
 
   if (!barber) {
     return { title: "Usta topilmadi" };
@@ -26,7 +29,7 @@ export async function generateMetadata({ params }: BarberDetailPageProps): Promi
 
 export default async function BarberDetailPage({ params }: BarberDetailPageProps) {
   const { id } = await params;
-  const barber = getBarberById(id);
+  const barber = await getPublicBarberById(id);
 
   if (!barber) {
     notFound();
