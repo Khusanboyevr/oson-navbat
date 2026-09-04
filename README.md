@@ -7,12 +7,12 @@ The visual language — soft frosted-glass cards over a warm mesh-gradient backg
 ## ✨ Features
 
 ### Sign-in (Google only)
-Sign-in is **Google-only** — no phone number, no SMS code. `/login` renders Google's own button (Google Identity Services); the ID token it returns is verified server-side, forwarded to the Django backend's `POST /auth/google/`, and the account (name + email + photo) is created and listed in the super admin panel. See [Auth](#-auth-google-sign-in).
+Sign-in is **Google-only** — no phone number, no SMS code (the backend removed `/auth/otp/*` entirely; those paths now 404). `/login` renders Google's own button (Google Identity Services); the ID token it returns is verified server-side, forwarded to the Django backend's `POST /auth/google/`, and the account (name + email + photo) is created and listed in the super admin panel. See [Auth](#-auth-google-sign-in).
 
 ### For customers
 - **Home** — hero search, category filters, and a toggle between a card grid and a live **map** of every approved worker (Leaflet + OpenStreetMap, no API key needed). The list refreshes on a timer and on tab focus, so newly approved ustas appear without a redeploy
 - **Barber profile** — bio, services, a date/time picker with simulated availability, and a running booking summary (desktop sidebar / mobile sticky bar)
-- **Booking confirmation** — a glass modal that walks through phone entry → SMS code → success, without leaving the page
+- **Booking confirmation** — a glass modal that confirms straight from the signed-in Google account (no phone, no SMS code), without leaving the page
 - **My Bookings** — active vs. history tabs, status pills, cancel / get-directions actions
 - **Profile** — the signed-in Google account (name, email, avatar), language selector, a native Web Push notification toggle, role shortcuts (usta schedule / super admin panel), support and logout
 - **Notifications** — a bell icon in the header opens a glass dropdown with in-app notification history; the same events also arrive as native OS push notifications, even with the app closed
@@ -86,14 +86,13 @@ cp .env.local.example .env.local
 
 | Variable | Required | What it does |
 |---|---|---|
-| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | ✅ | Renders Google's sign-in button. Without it the login page says so and nobody can sign in. |
-| `GOOGLE_CLIENT_ID` | ✅ | Same value; used server-side to verify the returned ID token. |
-| `NEXT_PUBLIC_API_URL` | ✅ | The Django backend base URL (`https://api.qulaynavbat.uz/api/v1`). |
+| `NEXT_PUBLIC_API_URL` | ✅ | The Django backend base URL (`https://api.qulaynavbat.uz/api/v1`). Everything else, the Google client ID included, is discovered from it. |
+| `GOOGLE_CLIENT_ID` | — | Overrides the client ID the backend publishes. Only for a staging build pointing at another Google project. |
 | `SUPER_ADMIN_EMAILS` | — | Comma-separated emails that get the super admin role. **If empty, the first account to sign in becomes the super admin.** |
 | `DATA_DIR` | — | Where the app's own store writes (default `<project>/.data`). |
 | `NEXT_PUBLIC_SITE_URL` | — | Production URL for SEO metadata. |
 
-Get the Google client ID at [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials) → *Create credentials → OAuth client ID → Web application*, and add `http://localhost:3000` plus `https://qulaynavbat.uz` under **Authorized JavaScript origins**.
+No Google setup is needed on the frontend: the backend owns the OAuth client and publishes its ID at `/auth/methods/`, which the login page reads at runtime. Whoever owns that client only has to list `http://localhost:3000` and `https://qulaynavbat.uz` under **Authorized JavaScript origins** in [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
 
 The map needs no key at all.
 
@@ -115,13 +114,15 @@ npm run lint    # ESLint
 
 ## 🔐 Auth (Google sign-in)
 
-1. `/login` renders Google's button via `src/lib/google-auth.ts` → `GoogleSignInButton`.
+1. `GoogleSignInButton` asks `/api/auth/methods` (which relays `GET /auth/methods/`) for the live client ID, then renders Google's button. Nothing is hardcoded, so rotating the ID on the backend is enough.
 2. Google returns an ID token (JWT) to the browser, which POSTs it to `POST /api/auth/google`.
-3. That route verifies the token against Google (`oauth2.googleapis.com/tokeninfo`, checking audience, issuer, expiry and `email_verified`), so a token minted for another app is rejected.
-4. It forwards the same token to the backend's `POST /auth/google/` and mirrors the Django session cookie server-side (`qn_backend`, httpOnly).
+3. That route verifies the token against Google (`oauth2.googleapis.com/tokeninfo`, checking the audience against that same client ID, plus issuer, expiry and `email_verified`), so a token minted for another app is rejected.
+4. It forwards the token to the backend's `POST /auth/google/`, which answers `{ user, is_new_user }` and sets its httpOnly session/refresh cookies. Those are mirrored server-side (`qn_backend`).
 5. It creates/updates the local account and issues the app's own session cookie (`qn_session`, httpOnly).
 
-**The backend's `GOOGLE_CLIENT_ID` is currently unset** — `POST /auth/google/` answers `{"detail": "GOOGLE_CLIENT_ID sozlanmagan."}`. Until the backend dev sets it (to the same client ID), sign-in still works: the account is created locally and flagged `syncedWithBackend: false`, which the super admin panel shows as "faqat lokal". Nothing else has to change once it's configured.
+**Every backend call the browser needs goes through this app's server**, because the Django cookies never reach the client (and the backend's CORS allowlist only covers `qulaynavbat.uz`). A backend `401` is retried once behind `POST /auth/refresh/`; if that fails too, the user signs in with Google again. If the backend is unreachable the account is still created locally and flagged `syncedWithBackend: false`, which the super admin panel shows as "faqat lokal".
+
+`user.phone` is `null` for Google-only accounts, and the app never renders a phone for a customer. The phone numbers it does show belong to ustas and come from the registration form, which requires one.
 
 Roles: `client` → `/`, `barber` → `/admin`, `superadmin` → `/super-admin`. Super-admin pages and every `/api/admin/*` route check the role server-side.
 
@@ -136,6 +137,7 @@ The Django backend can't yet store users, applications, or barbers (see below), 
 
 | Route | Methods | Auth | Notes |
 |---|---|---|---|
+| `/api/auth/methods` | `GET` | — | Live sign-in methods + Google client ID |
 | `/api/auth/google` | `POST` | — | Verify Google ID token, create session |
 | `/api/auth/session` | `GET` | — | Current user (or `null`) |
 | `/api/auth/logout` | `POST` | — | Clears both cookies, logs out of Django |
@@ -147,6 +149,11 @@ The Django backend can't yet store users, applications, or barbers (see below), 
 | `/api/admin/barbers/[id]` | `PATCH`, `DELETE` | super admin | Block/unblock; delete (backend-owned rows are read-only) |
 | `/api/admin/users` | `GET` | super admin | Everyone who signed in |
 | `/api/admin/users/[id]` | `PATCH`, `DELETE` | super admin | Block/unblock, change role; delete |
+| `/api/notifications` | `GET` | signed in | History (`?is_read=false`) |
+| `/api/notifications/unread-count` | `GET` | signed in | Bell badge |
+| `/api/notifications/read` | `PUT` | signed in | Empty body = all, `{ ids }` = some |
+| `/api/notifications/vapid-key` | `GET` | — | Web Push public key |
+| `/api/notifications/subscribe` | `POST` | signed in | Registers a `PushSubscription` |
 | `/api/bookings` | `GET`, `POST` | — | Still a stub over mock booking data |
 
 Bookings are the one flow still running on mock data (`src/lib/bookings.ts`) — everything auth-, worker- and map-related is real.
@@ -155,10 +162,10 @@ Bookings are the one flow still running on mock data (`src/lib/bookings.ts`) —
 
 `https://api.qulaynavbat.uz/api/v1`, Django REST, cookie-based auth (httpOnly session + CSRF).
 
-- **`src/lib/api-client.ts`** — the browser-side wrapper (used by notifications): `credentials: "include"` on every request, and the CSRF dance (`GET /auth/csrf/`, echo `X-CSRFToken`) on every mutation.
-- **`src/lib/server/backend.ts`** — the server-side equivalent, used for auth and barbers.
+- **`src/lib/server/backend.ts`** — the single place that talks to it: CSRF (`GET /auth/csrf/` → `X-CSRFToken`), cookie relay, refresh-on-401, and the `/auth/methods/` cache.
+- **`src/lib/server/notifications-proxy.ts`** — relays the notification endpoints as the signed-in user, behind this app's `/api/notifications/*` routes.
 
-**Verified live:** `/auth/csrf/`, `/auth/me/`, `/auth/google/` (POST, needs `id_token`), `/auth/logout/`, `/auth/refresh/`, `/notifications/*`, and read-only `/salons/`, `/barbers/`, `/reviews/` (all currently empty).
+**Verified live:** `/auth/methods/`, `/auth/csrf/`, `/auth/me/`, `/auth/google/` (POST `{ id_token }` → `{ user, is_new_user }`), `/auth/logout/`, `/auth/refresh/`, `/notifications/*`, and read-only `/salons/`, `/barbers/`, `/reviews/` (both barber lists currently empty). `/auth/otp/request/` and `/auth/otp/verify/` are gone (404) — SMS login no longer exists anywhere.
 
 ## 🔔 Notifications (Web Push)
 
@@ -166,16 +173,16 @@ Native **Web Push**, backed by the Django backend ([`pywebpush`](https://pypi.or
 
 - **`public/sw.js`** — service worker: shows the notification on `push`, focuses/opens a tab on `notificationclick`
 - **`src/lib/push-client.ts`** — permission + `PushManager` subscription, using the VAPID public key fetched from the backend (`GET /notifications/vapid-key/`, now reporting `configured: true`)
-- **`src/lib/notifications-api.ts`** — history (`GET /notifications/`), unread count, mark-as-read, subscribe
+- **`src/lib/notifications-api.ts`** — history, unread count, mark-as-read and subscribe, all through this app's `/api/notifications/*` routes (same-origin: no CSRF dance, no CORS problem, and the relay supplies the session the browser doesn't have)
+- Push payload: `{ id, title, body, kind, url }`
 - Reminders arrive in a 45–75 minute window before the appointment (the backend's cron runs every 15 min and dedupes)
 
 ## 🛠 What's next for the backend
 
-1. **Set `GOOGLE_CLIENT_ID`** on the backend to the same OAuth client ID the frontend uses — that alone makes every Google sign-in land in the Django database instead of only locally.
-2. **Add a worker/barber write endpoint** — `POST /barbers/` (or `/salons/`) is `405` today. The frontend already posts the full payload on every approval (`pushBarberToBackend` in `src/lib/server/backend.ts`: name, salon, specialty, category, phone, email, address, residence, latitude/longitude, experience, bio, services) and records whether it succeeded, so it starts syncing the moment the endpoint accepts it.
-3. **Add a users list endpoint** (`GET /auth/users/` or similar, staff-only) so the super admin panel can read accounts from the backend instead of the local store.
-4. **Optionally an applications endpoint**, if worker applications should live server-side rather than in this app's store.
-5. Share exact request/response shapes (OpenAPI/Swagger) for `/bookings/`, `/reviews/`, `/salons/` — bookings are the last flow still on mock data.
+1. **Add a worker/barber write endpoint** — `POST /barbers/` (or `/salons/`) is `405` today. The frontend already posts the full payload on every approval (`pushBarberToBackend` in `src/lib/server/backend.ts`: name, salon, specialty, category, phone, email, address, residence, latitude/longitude, experience, bio, services) and records whether it succeeded, so it starts syncing the moment the endpoint accepts it.
+2. **Add a users list endpoint** (`GET /auth/users/` or similar, staff-only) so the super admin panel can read accounts from the backend instead of the local store.
+3. **Optionally an applications endpoint**, if worker applications should live server-side rather than in this app's store.
+4. Share exact request/response shapes (OpenAPI/Swagger) for `/bookings/`, `/reviews/`, `/salons/` — bookings are the last flow still on mock data.
 
 ## 🔍 SEO & PWA
 

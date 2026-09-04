@@ -14,11 +14,13 @@ export const runtime = "nodejs";
  * Completes Google sign-in.
  *
  * The browser gets an ID token from Google Identity Services and posts it here;
- * this route verifies it, forwards it to Django's `POST /auth/google/` so the
- * account exists upstream too, and issues our own session cookie. If the backend
- * rejects it (its `GOOGLE_CLIENT_ID` is still unset in production), the account is
- * created locally anyway and `syncedWithBackend: false` is recorded, which the
- * super admin panel surfaces.
+ * this route verifies it (audience checked against the client ID the backend
+ * publishes at `/auth/methods/`), forwards it to Django's `POST /auth/google/` so
+ * the account is created there too, and issues our own session cookie.
+ *
+ * Django's httpOnly session/refresh cookies are kept server-side; if the backend
+ * is unreachable the account is still created locally with
+ * `syncedWithBackend: false`, which the super admin panel surfaces.
  */
 export async function POST(request: Request): Promise<Response> {
   const body = (await request.json().catch(() => ({}))) as { credential?: string };
@@ -33,8 +35,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json(
       {
         status: "error",
-        message:
-          "Google tokenini tekshirib bo'lmadi. GOOGLE_CLIENT_ID sozlanganini va token amal qilishini tekshiring.",
+        message: "Google tokenini tekshirib bo'lmadi. Qaytadan urinib ko'ring.",
       },
       { status: 401 }
     );
@@ -48,7 +49,8 @@ export async function POST(request: Request): Promise<Response> {
   cookieStore.set(SESSION_COOKIE, token, sessionCookieOptions);
 
   if (backend.ok && backend.cookies.length > 0) {
-    // Keep Django's session/CSRF pair server-side; the browser never needs to see it.
+    // Keep Django's session/refresh/CSRF cookies server-side; the browser never
+    // needs to see them, and this is what lets us call the backend as the user.
     const mirrored = backend.cookies.map((value) => value.split(";")[0]).join("; ");
     cookieStore.set(BACKEND_COOKIE, mirrored, sessionCookieOptions);
   }
@@ -59,6 +61,7 @@ export async function POST(request: Request): Promise<Response> {
       user: await toSessionUser(user),
       backendSynced: backend.ok,
       backendError: backend.ok ? null : backend.error,
+      isNewUser: backend.isNewUser,
     },
   });
 }

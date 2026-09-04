@@ -8,11 +8,32 @@ import type { SessionUser } from "@/lib/types";
  * backend. No token is ever trusted on the client side.
  */
 
-export const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
-export const isGoogleConfigured = GOOGLE_CLIENT_ID.length > 0;
-
 const SCRIPT_ID = "google-identity-services";
 const SCRIPT_SRC = "https://accounts.google.com/gsi/client";
+
+export interface AuthMethods {
+  google: boolean;
+  googleClientId: string | null;
+  sms: boolean;
+}
+
+let methodsPromise: Promise<AuthMethods> | null = null;
+
+/**
+ * The client ID comes from the backend (`/auth/methods/`, proxied through
+ * `/api/auth/methods`) — never hardcoded — so the frontend follows the backend if
+ * it is ever rotated. Fetched once per page load.
+ */
+export function fetchAuthMethods(): Promise<AuthMethods> {
+  if (methodsPromise) return methodsPromise;
+
+  methodsPromise = fetch("/api/auth/methods", { cache: "no-store" })
+    .then((response) => response.json() as Promise<{ data?: AuthMethods }>)
+    .then((payload) => payload.data ?? { google: false, googleClientId: null, sms: false })
+    .catch(() => ({ google: false, googleClientId: null, sms: false }));
+
+  return methodsPromise;
+}
 
 interface GoogleCredentialResponse {
   credential?: string;
@@ -73,6 +94,8 @@ export interface GoogleLoginResult {
   user: SessionUser;
   backendSynced: boolean;
   backendError: string | null;
+  /** True the first time this Google account signs in — the backend says so. */
+  isNewUser: boolean;
 }
 
 /** Exchanges the Google credential for an app session. */

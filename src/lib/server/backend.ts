@@ -87,6 +87,49 @@ async function fetchCsrf(): Promise<{ token: string | null; cookie: string | nul
   return { token, cookie: cookieHeader || null };
 }
 
+/* ---------------------------------------------------------- auth methods */
+
+export interface AuthMethods {
+  google: boolean;
+  googleClientId: string | null;
+  sms: boolean;
+}
+
+interface RawAuthMethods {
+  google?: boolean;
+  google_client_id?: string | null;
+  sms?: boolean;
+}
+
+let methodsCache: { value: AuthMethods; expiresAt: number } | null = null;
+const METHODS_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * `GET /auth/methods/` tells us which sign-in methods are live and which Google
+ * client ID to use. Reading it (instead of hardcoding the ID) means the frontend
+ * follows the backend automatically if it ever rotates — and `sms: false` is how
+ * the backend states that phone login no longer exists.
+ *
+ * Cached briefly, since it is hit on every render of the login button.
+ */
+export async function fetchAuthMethods(): Promise<AuthMethods> {
+  if (methodsCache && methodsCache.expiresAt > Date.now()) return methodsCache.value;
+
+  const result = await request<RawAuthMethods>("/auth/methods/");
+  const envClientId = process.env.GOOGLE_CLIENT_ID ?? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+
+  const value: AuthMethods = {
+    google: result.data?.google ?? Boolean(envClientId),
+    // An explicitly set env var wins, so a staging build can point elsewhere.
+    googleClientId: envClientId || result.data?.google_client_id || null,
+    sms: result.data?.sms ?? false,
+  };
+
+  // Only cache an answer the backend actually gave; keep retrying otherwise.
+  if (result.ok) methodsCache = { value, expiresAt: Date.now() + METHODS_TTL_MS };
+  return value;
+}
+
 /* -------------------------------------------------------------------- auth */
 
 export interface GoogleProfile {
@@ -103,7 +146,7 @@ export interface GoogleProfile {
  * rejected here.
  */
 export async function verifyGoogleIdToken(idToken: string): Promise<GoogleProfile | null> {
-  const clientId = process.env.GOOGLE_CLIENT_ID ?? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+  const { googleClientId: clientId } = await fetchAuthMethods();
   if (!clientId) return null;
 
   try {
@@ -149,24 +192,64 @@ export interface BackendLoginResult {
   error: string | null;
   /** Session cookies from Django, to be mirrored onto the browser response. */
   cookies: string[];
+  /** The account as the backend sees it. `phone` is null for Google-only signups. */
+  user: BackendUser | null;
+  isNewUser: boolean;
+}
+
+export interface BackendUser {
+  id?: number | string;
+  email?: string;
+  name?: string | null;
+  full_name?: string | null;
+  phone?: string | null;
+  role?: string | null;
 }
 
 /**
- * Hands the Google ID token to `POST /auth/google/` so the account exists on the
- * real backend too. Returns `ok: false` (with the reason) while the backend's own
- * `GOOGLE_CLIENT_ID` is unset — sign-in still succeeds locally in that case.
+ * Hands the Google ID token to `POST /auth/google/`, which verifies it, creates
+ * the account if needed and answers `{ user, is_new_user }` with the session
+ * written to httpOnly cookies. Those cookies come back to us here and are
+ * mirrored onto the browser response by the route.
+ *
+ * On failure the app still signs the user in locally and records
+ * `syncedWithBackend: false`, so an outage can't lock people out.
  */
 export async function loginWithBackendGoogle(idToken: string): Promise<BackendLoginResult> {
   const { token, cookie } = await fetchCsrf();
 
-  const result = await request<unknown>("/auth/google/", {
+  const result = await request<{ user?: BackendUser; is_new_user?: boolean }>("/auth/google/", {
     method: "POST",
     body: JSON.stringify({ id_token: idToken }),
     headers: token ? { "X-CSRFToken": token } : undefined,
     cookie: cookie ?? undefined,
   });
 
-  return { ok: result.ok, error: result.error, cookies: result.cookies };
+  return {
+    ok: result.ok,
+    error: result.error,
+    cookies: result.cookies,
+    user: result.data?.user ?? null,
+    isNewUser: result.data?.is_new_user ?? false,
+  };
+}
+
+/**
+ * `POST /auth/refresh/` mints a new access token from the refresh cookie.
+ * Returns the refreshed cookies, or null when the refresh token is gone too —
+ * in which case the user has to sign in with Google again.
+ */
+export async function refreshBackendSession(cookie: string | null): Promise<string[] | null> {
+  if (!cookie) return null;
+  const { token } = await fetchCsrf();
+
+  const result = await request("/auth/refresh/", {
+    method: "POST",
+    headers: token ? { "X-CSRFToken": token } : undefined,
+    cookie,
+  });
+
+  return result.ok ? result.cookies : null;
 }
 
 export async function logoutFromBackend(cookie: string | null): Promise<void> {
@@ -179,11 +262,102 @@ export async function logoutFromBackend(cookie: string | null): Promise<void> {
   });
 }
 
-/** `GET /auth/me/` with the mirrored Django session cookie, if we have one. */
-export async function fetchBackendMe(cookie: string | null): Promise<Record<string, unknown> | null> {
-  if (!cookie) return null;
-  const result = await request<Record<string, unknown>>("/auth/me/", { cookie });
-  return result.ok ? result.data : null;
+export interface BackendMeResult {
+  user: BackendUser | null;
+  /** Set when the session was refreshed; the caller re-mirrors these cookies. */
+  cookies: string[] | null;
+}
+
+/**
+ * `GET /auth/me/` with the mirrored Django session cookie. A 401 means the access
+ * token expired, so it refreshes once and retries — the documented recovery path.
+ */
+export async function fetchBackendMe(cookie: string | null): Promise<BackendMeResult> {
+  if (!cookie) return { user: null, cookies: null };
+
+  const first = await request<BackendUser>("/auth/me/", { cookie });
+  if (first.ok) return { user: first.data, cookies: null };
+  if (first.status !== 401) return { user: null, cookies: null };
+
+  const refreshed = await refreshBackendSession(cookie);
+  if (!refreshed) return { user: null, cookies: null };
+
+  const merged = [cookie, ...refreshed.map((value) => value.split(";")[0])].join("; ");
+  const retry = await request<BackendUser>("/auth/me/", { cookie: merged });
+  return retry.ok ? { user: retry.data, cookies: refreshed } : { user: null, cookies: null };
+}
+
+/* --------------------------------------------------- authenticated proxy */
+
+export interface ProxyResult<T> {
+  ok: boolean;
+  status: number;
+  data: T | null;
+  error: string | null;
+  /** Present when the session was refreshed mid-call; the route re-mirrors these. */
+  refreshedCookies: string[] | null;
+}
+
+/**
+ * Calls the backend as the signed-in user, using the Django cookies mirrored at
+ * login. Every browser-facing feature goes through here rather than calling the
+ * backend directly: those cookies are httpOnly and server-side only, and the
+ * backend's CORS allowlist wouldn't let the browser through anyway.
+ *
+ * A 401 is retried once behind `POST /auth/refresh/`, per the backend's rules.
+ */
+export async function proxyAsUser<T>(
+  path: string,
+  init: RequestInit & { requiresAuth?: boolean } = {},
+  cookie: string | null = null
+): Promise<ProxyResult<T>> {
+  const { requiresAuth = true, ...requestInit } = init;
+
+  if (requiresAuth && !cookie) {
+    return { ok: false, status: 401, data: null, error: "Tizimga kirilmagan", refreshedCookies: null };
+  }
+
+  const method = (requestInit.method ?? "GET").toUpperCase();
+  const isMutating = method !== "GET" && method !== "HEAD";
+
+  const send = async (activeCookie: string | null) => {
+    const headers = new Headers(requestInit.headers);
+    let jar = activeCookie;
+
+    if (isMutating) {
+      const { token, cookie: csrfCookie } = await fetchCsrf();
+      if (token) headers.set("X-CSRFToken", token);
+      jar = [activeCookie, csrfCookie].filter(Boolean).join("; ") || null;
+    }
+
+    return request<T>(path, { ...requestInit, headers, cookie: jar ?? undefined });
+  };
+
+  const first = await send(cookie);
+  if (first.ok || first.status !== 401 || !cookie) {
+    return {
+      ok: first.ok,
+      status: first.status,
+      data: first.data,
+      error: first.error,
+      refreshedCookies: null,
+    };
+  }
+
+  const refreshed = await refreshBackendSession(cookie);
+  if (!refreshed) {
+    return { ok: false, status: 401, data: null, error: first.error, refreshedCookies: null };
+  }
+
+  const merged = [cookie, ...refreshed.map((value) => value.split(";")[0])].join("; ");
+  const retry = await send(merged);
+  return {
+    ok: retry.ok,
+    status: retry.status,
+    data: retry.data,
+    error: retry.error,
+    refreshedCookies: refreshed,
+  };
 }
 
 /* ----------------------------------------------------------------- barbers */

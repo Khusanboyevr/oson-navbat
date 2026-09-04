@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { isApiConfigured } from "@/lib/api-client";
+import { useSession } from "@/components/providers/SessionProvider";
 import type { AppNotification } from "@/lib/notifications";
 import { fetchNotifications, fetchUnreadCount, fetchVapidKey, markNotificationsRead } from "@/lib/notifications-api";
 import {
@@ -30,6 +30,7 @@ interface NotificationsContextValue {
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
+  const { user } = useSession();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +42,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const pushSupported = useMemo(() => isPushSupported(), []);
 
   const refresh = useCallback(() => {
-    if (!isApiConfigured) return;
+    // The backend only has notifications for a signed-in account.
+    if (!user) return;
     setIsLoading(true);
     Promise.all([fetchNotifications(), fetchUnreadCount()])
       .then(([list, count]) => {
@@ -49,31 +51,35 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         setUnreadCount(count);
       })
       .catch(() => {
-        // Backend unreachable (offline, CORS in local dev, etc.) — leave whatever
-        // history is already showing rather than blowing away the UI.
+        // Backend unreachable or the session expired — leave whatever history is
+        // already showing rather than blowing away the UI.
       })
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    // refresh() kicks off a fetch and sets isLoading synchronously — the sanctioned
-    // "sync from an external system on mount" case, just wrapped in a helper.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    refresh();
     getPushPermissionState().then((state) => setPushEnabled(state === "granted"));
     if (isPushSupported()) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
-    if (isApiConfigured) {
-      fetchVapidKey()
-        .then(({ configured, publicKey }) => {
-          setPushConfigured(configured);
-          setVapidPublicKey(publicKey);
-        })
-        .catch(() => setPushConfigured(false));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchVapidKey()
+      .then(({ configured, publicKey }) => {
+        setPushConfigured(configured);
+        setVapidPublicKey(publicKey);
+      })
+      .catch(() => setPushConfigured(false));
   }, []);
+
+  // History loads once someone is signed in, and clears again on sign-out.
+  useEffect(() => {
+    if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+    refresh();
+  }, [user, refresh]);
 
   const markAllRead = useCallback(() => {
     if (unreadCount === 0) return;
