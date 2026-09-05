@@ -11,8 +11,12 @@ import {
   toSessionUser,
 } from "@/lib/server/session";
 import { createSession, updateUser, upsertGoogleUser } from "@/lib/server/store";
+import type { UserRole } from "@/lib/types";
 
 export const runtime = "nodejs";
+
+/** Role privilege order, so a backend answer can promote but not demote. */
+const RANK: Record<UserRole, number> = { client: 0, barber: 1, superadmin: 2 };
 
 /**
  * Completes Google sign-in.
@@ -48,9 +52,12 @@ export async function POST(request: Request): Promise<Response> {
   const backend = await loginWithBackendGoogle(credential);
   let user = await upsertGoogleUser(profile, backend.ok);
 
-  // Whatever role the backend reports wins over the local bootstrap rule.
+  // The backend can promote (an usta or super admin there is one here too), but it
+  // never demotes: SUPER_ADMIN_EMAILS is a local decision, and letting a backend
+  // "client" override it would lock the operator out of their own panel before
+  // they have been granted the role upstream.
   const backendRole = backend.user?.role ? normalizeUserRole(backend.user.role) : null;
-  if (backendRole && backendRole !== user.role) {
+  if (backendRole && RANK[backendRole] > RANK[user.role]) {
     user = (await updateUser(user.id, { role: backendRole })) ?? user;
   }
 
