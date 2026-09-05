@@ -89,6 +89,7 @@ cp .env.local.example .env.local
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | ✅ | The Django backend base URL (`https://api.qulaynavbat.uz/api/v1`). Everything else, the Google client ID included, is discovered from it. |
 | `GOOGLE_CLIENT_ID` | — | Overrides the client ID the backend publishes. Only for a staging build pointing at another Google project. |
+| `SESSION_SECRET` | — | Signs the session cookie. Set it in production — changing it signs everyone out, and instances that disagree on it won't accept each other's sessions. |
 | `SUPER_ADMIN_EMAILS` | — | Comma-separated emails that get the super admin role. **If empty, the first account to sign in becomes the super admin.** |
 | `DATA_DIR` | — | Where the app's own store writes (default `<project>/.data`). |
 | `NEXT_PUBLIC_SITE_URL` | — | Production URL for SEO metadata. |
@@ -119,13 +120,15 @@ npm run lint    # ESLint
 2. Google returns an ID token (JWT) to the browser, which POSTs it to `POST /api/auth/google`.
 3. That route verifies the token against Google (`oauth2.googleapis.com/tokeninfo`, checking the audience against that same client ID, plus issuer, expiry and `email_verified`), so a token minted for another app is rejected.
 4. It forwards the token to the backend's `POST /auth/google/`, which answers `{ user, is_new_user }` and sets its httpOnly session/refresh cookies. Those are mirrored server-side (`qn_backend`).
-5. It creates/updates the local account and issues the app's own session cookie (`qn_session`, httpOnly).
+5. It creates/updates the local account and issues the app's own session cookie (`qn_session`, httpOnly) — a **signed** cookie, not a row in any store. Nothing about staying signed in depends on a file surviving, so a restart, a redeploy or a second instance can't sign anyone out.
 
 **Every backend call the browser needs goes through this app's server**, because the Django cookies never reach the client (and the backend's CORS allowlist only covers `qulaynavbat.uz`). A backend `401` is retried once behind `POST /auth/refresh/`; if that fails too, the user signs in with Google again. If the backend is unreachable the account is still created locally and flagged `syncedWithBackend: false`, which the super admin panel shows as "faqat lokal".
 
 `user.phone` is `null` for Google-only accounts, and the app never renders a phone for a customer. The phone numbers it does show belong to ustas and come from the registration form, which requires one.
 
-Roles: `client` → `/`, `barber` → `/admin`, `superadmin` → `/super-admin`. Super-admin pages and every `/api/admin/*` route check the role server-side.
+Roles: `client` → `/`, `barber` → `/admin`, `superadmin` → `/super-admin`. Both dashboards and every `/api/admin/*` route check the role server-side.
+
+An usta signs in with the email their profile was approved under, and that alone opens their panel: an approved application (or an existing barber profile) for that address grants the `barber` role at sign-in, without waiting for the backend to report it back. Roles only move up this way — a backend answer can promote, never demote.
 
 ## 🗄 Data & API routes
 

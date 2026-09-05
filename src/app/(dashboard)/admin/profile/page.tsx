@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import AccessDenied from "@/components/dashboard/AccessDenied";
 import BarberProfileEditor from "@/components/dashboard/BarberProfileEditor";
+import { getCurrentUser } from "@/lib/server/session";
 
 export const metadata: Metadata = {
   title: "Mening profilim",
@@ -8,7 +10,10 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 /** Where an usta edits what customers see: their photo, bio and service menu. */
-export default function BarberProfilePage() {
+export default async function BarberProfilePage() {
+  const user = await getCurrentUser();
+  if (!user || user.role === "client") return <AccessDenied role="usta" />;
+
   return (
     <div className="flex flex-col gap-8">
       <div>

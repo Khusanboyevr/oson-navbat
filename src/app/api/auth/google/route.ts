@@ -7,10 +7,16 @@ import {
 import {
   BACKEND_COOKIE,
   SESSION_COOKIE,
+  issueSessionCookieValue,
   sessionCookieOptions,
   toSessionUser,
 } from "@/lib/server/session";
-import { createSession, updateUser, upsertGoogleUser } from "@/lib/server/store";
+import {
+  findApplicationByEmail,
+  findBarberByEmail,
+  updateUser,
+  upsertGoogleUser,
+} from "@/lib/server/store";
 import type { UserRole } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -24,7 +30,7 @@ const RANK: Record<UserRole, number> = { client: 0, barber: 1, superadmin: 2 };
  * The browser gets an ID token from Google Identity Services and posts it here;
  * this route verifies it (audience checked against the client ID the backend
  * publishes at `/auth/methods/`), forwards it to Django's `POST /auth/google/` so
- * the account is created there too, and issues our own session cookie.
+ * the account is created there too, and issues our own signed session cookie.
  *
  * Django's httpOnly session/refresh cookies are kept server-side; if the backend
  * is unreachable the account is still created locally with
@@ -52,19 +58,24 @@ export async function POST(request: Request): Promise<Response> {
   const backend = await loginWithBackendGoogle(credential);
   let user = await upsertGoogleUser(profile, backend.ok);
 
-  // The backend can promote (an usta or super admin there is one here too), but it
-  // never demotes: SUPER_ADMIN_EMAILS is a local decision, and letting a backend
-  // "client" override it would lock the operator out of their own panel before
-  // they have been granted the role upstream.
-  const backendRole = backend.user?.role ? normalizeUserRole(backend.user.role) : null;
-  if (backendRole && RANK[backendRole] > RANK[user.role]) {
-    user = (await updateUser(user.id, { role: backendRole })) ?? user;
-  }
+  // An approved usta signs in with the email their profile was created under, so
+  // that alone is enough to open their panel — even before the backend reports the
+  // role back. The backend can still promote further (to super admin); it never
+  // demotes, or an operator listed in SUPER_ADMIN_EMAILS could lock themselves out.
+  const [application, ownProfile] = await Promise.all([
+    findApplicationByEmail(profile.email),
+    findBarberByEmail(profile.email),
+  ]);
 
-  const token = await createSession(user.id);
+  const claims: UserRole[] = [user.role];
+  if (application?.status === "approved" || ownProfile) claims.push("barber");
+  if (backend.user?.role) claims.push(normalizeUserRole(backend.user.role));
+
+  const role = claims.reduce((best, claim) => (RANK[claim] > RANK[best] ? claim : best), "client");
+  if (role !== user.role) user = (await updateUser(user.id, { role })) ?? user;
 
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, sessionCookieOptions);
+  cookieStore.set(SESSION_COOKIE, issueSessionCookieValue(user), sessionCookieOptions);
 
   if (backend.ok && backend.cookies.length > 0) {
     // Keep Django's session/refresh/CSRF cookies server-side; the browser never

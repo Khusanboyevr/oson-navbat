@@ -15,8 +15,11 @@ import type {
  * - **Worker applications.** Self-registration doesn't exist on the backend: it
  *   creates barbers only through `/super-admin/barbers/`, so the review queue
  *   behind `/register/barber` lives here until a super admin approves it.
- * - **This app's sessions**, plus a mirror of users/barbers used as a fallback
- *   while the backend is unreachable. The backend is the source of truth for both.
+ * - **A mirror of users and barbers**, used as a fallback while the backend is
+ *   unreachable. The backend is the source of truth for both.
+ *
+ * Sessions are not here: they are signed cookies (`session-token.ts`), so nothing
+ * about staying signed in depends on this file surviving.
  *
  * Data lives in `DATA_DIR` (default `<project>/.data`). On a serverless host that
  * directory is ephemeral — set `DATA_DIR` to a mounted volume if you rely on the
@@ -27,7 +30,6 @@ interface StoreShape {
   users: AppUser[];
   applications: BarberApplication[];
   barbers: BarberProfile[];
-  sessions: { token: string; userId: string; createdAt: string }[];
 }
 
 const DATA_DIR = process.env.DATA_DIR ?? path.join(process.cwd(), ".data");
@@ -49,7 +51,7 @@ function seed(): StoreShape {
   // Deliberately empty: everything real comes from the backend, and demo ustas on
   // the public map are worse than an empty one — they can't be booked (the backend
   // rejects their ids as invalid UUIDs) and they hide how much real data exists.
-  return { users: [], applications: [], barbers: [], sessions: [] };
+  return { users: [], applications: [], barbers: [] };
 }
 
 /**
@@ -90,7 +92,6 @@ async function load(): Promise<StoreShape> {
       users: parsed.users ?? [],
       applications: parsed.applications ?? [],
       barbers: withoutDemoBarbers(parsed.barbers ?? []),
-      sessions: parsed.sessions ?? [],
     };
     cacheMtimeMs = mtimeMs;
   } catch {
@@ -211,31 +212,7 @@ export async function deleteUser(id: string): Promise<boolean> {
   return mutate((data) => {
     const before = data.users.length;
     data.users = data.users.filter((user) => user.id !== id);
-    data.sessions = data.sessions.filter((session) => session.userId !== id);
     return data.users.length < before;
-  });
-}
-
-/* --------------------------------------------------------------- sessions */
-
-export async function createSession(userId: string): Promise<string> {
-  return mutate((data) => {
-    const token = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
-    data.sessions.push({ token, userId, createdAt: new Date().toISOString() });
-    return token;
-  });
-}
-
-export async function findUserBySession(token: string): Promise<AppUser | null> {
-  const data = await load();
-  const session = data.sessions.find((item) => item.token === token);
-  if (!session) return null;
-  return data.users.find((user) => user.id === session.userId) ?? null;
-}
-
-export async function destroySession(token: string): Promise<void> {
-  await mutate((data) => {
-    data.sessions = data.sessions.filter((session) => session.token !== token);
   });
 }
 
