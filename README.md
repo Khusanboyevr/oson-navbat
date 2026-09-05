@@ -91,7 +91,7 @@ cp .env.local.example .env.local
 | `GOOGLE_CLIENT_ID` | — | Overrides the client ID the backend publishes. Only for a staging build pointing at another Google project. |
 | `SESSION_SECRET` | — | Signs the session cookie. Set it in production — changing it signs everyone out, and instances that disagree on it won't accept each other's sessions. |
 | `SUPER_ADMIN_EMAILS` | — | Comma-separated emails that get the super admin role. **If empty, the first account to sign in becomes the super admin.** |
-| `DATA_DIR` | — | Where the app's own store writes (default `<project>/.data`). |
+| `DATA_DIR` | — | Where the app's own store writes. Defaults to `<project>/.data` locally and `/tmp/qulaynavbat` on Vercel/Lambda, whose only writable path that is. Point it at a mounted volume if the pending application queue must outlive an instance — everything else lives on the backend. |
 | `NEXT_PUBLIC_SITE_URL` | — | Production URL for SEO metadata. |
 
 No Google setup is needed on the frontend: the backend owns the OAuth client and publishes its ID at `/auth/methods/`, which the login page reads at runtime. Whoever owns that client only has to list `http://localhost:3000` and `https://qulaynavbat.uz` under **Authorized JavaScript origins** in [Google Cloud Console](https://console.cloud.google.com/apis/credentials).

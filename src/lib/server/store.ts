@@ -32,8 +32,22 @@ interface StoreShape {
   barbers: BarberProfile[];
 }
 
-const DATA_DIR = process.env.DATA_DIR ?? path.join(process.cwd(), ".data");
+/**
+ * On a serverless host the project directory is read-only, and `/tmp` is the only
+ * writable path. Defaulting there keeps the app working instead of failing every
+ * request that touches the store; point `DATA_DIR` at a mounted volume when the
+ * application queue needs to outlive a single instance.
+ */
+const DATA_DIR =
+  process.env.DATA_DIR ??
+  (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+    ? path.join("/tmp", "qulaynavbat")
+    : path.join(process.cwd(), ".data"));
+
 const DATA_FILE = path.join(DATA_DIR, "qulaynavbat.json");
+
+/** Logged once, so a read-only filesystem doesn't fill the logs on every write. */
+let warnedAboutWrites = false;
 
 export const AVATAR_COLORS = [
   "#145ee5",
@@ -103,15 +117,28 @@ async function load(): Promise<StoreShape> {
 
 async function persist(data: StoreShape): Promise<void> {
   // Serialize writes and swap the file in atomically, so a crash mid-write can't
-  // leave a truncated JSON file behind.
+  // leave a truncated JSON file behind. A filesystem that refuses the write is not
+  // fatal: the in-memory copy still serves this instance, and the backend holds
+  // everything that matters anyway.
   writeQueue = writeQueue.then(async () => {
-    await mkdir(DATA_DIR, { recursive: true });
-    const tmp = `${DATA_FILE}.${process.pid}.tmp`;
-    await writeFile(tmp, JSON.stringify(data, null, 2), "utf8");
-    await rename(tmp, DATA_FILE);
-    // Record the new mtime so our own write doesn't look like someone else's.
     cache = data;
-    cacheMtimeMs = (await stat(DATA_FILE)).mtimeMs;
+
+    try {
+      await mkdir(DATA_DIR, { recursive: true });
+      const tmp = `${DATA_FILE}.${process.pid}.tmp`;
+      await writeFile(tmp, JSON.stringify(data, null, 2), "utf8");
+      await rename(tmp, DATA_FILE);
+      // Record the new mtime so our own write doesn't look like someone else's.
+      cacheMtimeMs = (await stat(DATA_FILE)).mtimeMs;
+    } catch (error) {
+      if (!warnedAboutWrites) {
+        warnedAboutWrites = true;
+        console.warn(
+          `[store] ${DATA_DIR} ga yozib bo'lmadi, ma'lumot faqat xotirada saqlanadi:`,
+          error instanceof Error ? error.message : error
+        );
+      }
+    }
   });
   await writeQueue;
 }
