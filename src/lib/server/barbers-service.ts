@@ -5,18 +5,23 @@ import type { BarberApplication, BarberProfile } from "@/lib/types";
 /** Reads that combine the local store with whatever the Django backend serves. */
 
 /**
- * Everything the public app shows: `GET /barbers/` from the real backend plus any
- * worker only this app knows about. Backend rows win on a duplicate email, since
- * that copy is canonical.
+ * Everything the public app shows: the backend's own catalog, and nothing else.
  *
- * The one exception is what the backend has no room for: its barber payload
- * carries no profile photo, and an usta editing their own services has nowhere to
- * send them (there is no self-service endpoint). Those two fields are therefore
- * overlaid from the local copy when the backend row lacks them — never replacing
- * data the backend actually returned.
+ * A worker only reaches customers once the backend knows about them — an approval
+ * that failed to sync must not put a bookable-looking card on the map, because the
+ * backend would reject any booking against it. The local mirror is used only when
+ * the backend can't be read at all, so an outage doesn't blank the site.
+ *
+ * The one thing overlaid from the local copy is what the backend has no room for:
+ * its barber payload carries no profile photo, and an usta's own service edits
+ * have nowhere to go until `/barber/me/` accepts them. Those fill gaps only, never
+ * replacing what the backend returned.
  */
 export async function getPublicBarbers(): Promise<BarberProfile[]> {
-  const [local, backend] = await Promise.all([listBarbers(), fetchBackendBarbers()]);
+  const [local, remote] = await Promise.all([listBarbers(), fetchBackendBarbers()]);
+
+  // Unreadable backend (not merely empty): serve the mirror rather than nothing.
+  if (!remote.ok) return local.filter((barber) => barber.status === "active");
 
   const localByEmail = new Map(
     local
@@ -24,7 +29,7 @@ export async function getPublicBarbers(): Promise<BarberProfile[]> {
       .map((barber) => [barber.email.toLowerCase(), barber] as const)
   );
 
-  const enrichedBackend = backend.map((barber) => {
+  const enriched = remote.barbers.map((barber) => {
     const shadow = barber.email ? localByEmail.get(barber.email.toLowerCase()) : undefined;
     if (!shadow) return barber;
 
@@ -36,22 +41,13 @@ export async function getPublicBarbers(): Promise<BarberProfile[]> {
     };
   });
 
-  const backendEmails = new Set(
-    backend.map((barber) => barber.email.toLowerCase()).filter((email) => email.length > 0)
-  );
-
-  const merged = [
-    ...enrichedBackend,
-    ...local.filter((barber) => !barber.email || !backendEmails.has(barber.email.toLowerCase())),
-  ];
-
-  return merged.filter((barber) => barber.status === "active");
+  return enriched.filter((barber) => barber.status === "active");
 }
 
 /** Every worker the super admin manages, blocked ones included. */
 export async function getManagedBarbers(): Promise<BarberProfile[]> {
-  const [local, backend] = await Promise.all([listBarbers(), fetchBackendBarbers()]);
-  return [...local, ...backend];
+  const [local, remote] = await Promise.all([listBarbers(), fetchBackendBarbers()]);
+  return [...local, ...remote.barbers];
 }
 
 function specialtyFor(application: BarberApplication): string {

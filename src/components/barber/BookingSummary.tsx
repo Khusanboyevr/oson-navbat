@@ -27,7 +27,7 @@ export default function BookingSummary({
 
   /** What's still missing, so the button never just sits there disabled without a reason. */
   const hint = !canBook
-    ? "Usta tasdiqlanmagan"
+    ? "Bron vaqtincha yopiq"
     : !service
       ? "Xizmatni tanlang"
       : !time

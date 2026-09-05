@@ -52,7 +52,12 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     return Response.json({ status: "ok", data: { application: updated, barber: null } });
   }
 
-  const backend = await createBackendBarberFromApplication(updated, await getBackendCookie());
+  // Approving an already-approved application simply retries the backend write,
+  // which is how a failed sync is recovered without re-entering anything.
+  const backend = updated.syncedWithBackend
+    ? { ok: true, error: null }
+    : await createBackendBarberFromApplication(updated, await getBackendCookie());
+
   if (backend.ok) await updateApplication(id, { syncedWithBackend: true });
 
   const barber = await promoteApplicationToBarber(updated);

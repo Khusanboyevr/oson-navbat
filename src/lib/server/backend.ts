@@ -498,10 +498,10 @@ export function mapBackendBarber(raw: RawBackendBarber): BarberProfile {
  * public, which is also why it refuses POST — creating goes through
  * `/super-admin/barbers/`). An empty or failing backend contributes nothing.
  */
-export async function fetchBackendBarbers(): Promise<BarberProfile[]> {
+export async function fetchBackendBarbers(): Promise<{ ok: boolean; barbers: BarberProfile[] }> {
   const result = await request<PaginatedBackend<RawBackendBarber>>("/barbers/?page_size=100");
-  if (!result.ok || !result.data?.results) return [];
-  return result.data.results.map(mapBackendBarber);
+  if (!result.ok) return { ok: false, barbers: [] };
+  return { ok: true, barbers: (result.data?.results ?? []).map(mapBackendBarber) };
 }
 
 /* ------------------------------------------------------- super admin API */

@@ -40,6 +40,8 @@ export default function ApplicationsView() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Per-application backend failures, so one bad sync doesn't hide the others. */
+  const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     try {
@@ -72,11 +74,26 @@ export default function ApplicationsView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
+      const payload = (await response.json().catch(() => ({}))) as {
+        message?: string;
+        data?: { backendSynced?: boolean; backendError?: string | null };
+      };
+
       if (!response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as { message?: string };
         setError(payload.message ?? "Amalni bajarib bo'lmadi");
         return;
       }
+
+      setSyncErrors((prev) => {
+        const next = { ...prev };
+        if (status === "approved" && payload.data?.backendSynced === false) {
+          next[id] = payload.data.backendError ?? "Backend sababini aytmadi";
+        } else {
+          delete next[id];
+        }
+        return next;
+      });
+
       await load();
     } finally {
       setBusyId(null);
@@ -221,15 +238,28 @@ export default function ApplicationsView() {
 
                     {!application.syncedWithBackend && (
                       <p className="sm:col-span-2 text-[11px] text-muted-foreground">
-                        Backendga hali yozilmagan — api.qulaynavbat.uz da usta qo&apos;shish endpointi
-                        ochilgach avtomatik sinxronlanadi.
+                        Backendga hali yozilmagan.
                       </p>
                     )}
                   </div>
                 )}
 
+                {application.status === "approved" && !application.syncedWithBackend && (
+                  <div className="flex flex-col gap-1 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+                    <span className="font-semibold">
+                      Bu usta backendga yozilmadi — mijozlarga ko&apos;rinmaydi.
+                    </span>
+                    {syncErrors[application.id] && <span>{syncErrors[application.id]}</span>}
+                    <span className="text-foreground/70">
+                      {syncErrors[application.id]?.includes("Tizimga kirilmagan")
+                        ? "Backend sessiyangiz tugagan — chiqib, qaytadan Google orqali kiring va \"Qayta yuborish\" ni bosing."
+                        : "Sababni tuzatib, \"Qayta yuborish\" ni bosing."}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap items-center gap-2 border-t border-white/30 pt-3">
-                  {application.status !== "approved" && (
+                  {(application.status !== "approved" || !application.syncedWithBackend) && (
                     <button
                       type="button"
                       disabled={isBusy}
@@ -237,7 +267,7 @@ export default function ApplicationsView() {
                       className="btn-premium flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-all duration-200 hover:-translate-y-[1px] hover:bg-primary-hover active:scale-95 disabled:opacity-50"
                     >
                       {isBusy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                      Tasdiqlash
+                      {application.status === "approved" ? "Qayta yuborish" : "Tasdiqlash"}
                     </button>
                   )}
 

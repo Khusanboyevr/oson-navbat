@@ -55,7 +55,7 @@ export default function BookingFlow({ barber }: BookingFlowProps) {
 
       {!isBookable && (
         <p className="rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-foreground/80 lg:col-span-2">
-          Bu usta hali tasdiqlanmagan, shuning uchun bron qilish vaqtincha yopiq.
+          Bu usta hali tizimda to&apos;liq faollashmagan, shuning uchun bron qilish vaqtincha yopiq.
         </p>
       )}
 
