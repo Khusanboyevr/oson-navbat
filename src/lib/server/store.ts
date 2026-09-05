@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { BARBERS } from "@/lib/barbers";
 import type {
   AppUser,
   BarberApplication,
@@ -47,32 +46,20 @@ export const AVATAR_COLORS = [
 ];
 
 function seed(): StoreShape {
-  return {
-    users: [],
-    applications: [],
-    // The original demo ustas, so the map and home list aren't empty before the
-    // first real worker is approved. The super admin can delete them like any row.
-    barbers: BARBERS.map((barber, index) => ({
-      id: barber.id,
-      name: barber.name,
-      specialty: barber.specialty,
-      rating: barber.rating,
-      location: barber.location,
-      coordinates: barber.coordinates,
-      avatarColor: barber.avatarColor,
-      photo: null,
-      bio: barber.bio,
-      category: barber.category,
-      experienceYears: 0,
-      phone: "",
-      email: "",
-      status: "active" as const,
-      source: "local" as const,
-      createdAt: new Date(2025, 0, index + 1).toISOString(),
-      services: barber.services,
-    })),
-    sessions: [],
-  };
+  // Deliberately empty: everything real comes from the backend, and demo ustas on
+  // the public map are worse than an empty one — they can't be booked (the backend
+  // rejects their ids as invalid UUIDs) and they hide how much real data exists.
+  return { users: [], applications: [], barbers: [], sessions: [] };
+}
+
+/**
+ * Drops the demo ustas an older version of this file seeded.
+ *
+ * They are recognisable with no false positives: a plain numeric id and no email,
+ * which no real row has (approved workers get a UUID and their Google address).
+ */
+function withoutDemoBarbers(barbers: BarberProfile[]): BarberProfile[] {
+  return barbers.filter((barber) => !(/^\d+$/.test(barber.id) && !barber.email));
 }
 
 let cache: StoreShape | null = null;
@@ -102,7 +89,7 @@ async function load(): Promise<StoreShape> {
     cache = {
       users: parsed.users ?? [],
       applications: parsed.applications ?? [],
-      barbers: parsed.barbers ?? [],
+      barbers: withoutDemoBarbers(parsed.barbers ?? []),
       sessions: parsed.sessions ?? [],
     };
     cacheMtimeMs = mtimeMs;

@@ -13,6 +13,8 @@ interface BookingFlowProps {
 }
 
 export default function BookingFlow({ barber }: BookingFlowProps) {
+  // Only backend-owned ustas can take bookings; the prefix marks them.
+  const isBookable = barber.id.startsWith("backend-");
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [selectedDateIso, setSelectedDateIso] = useState<string>(getTashkentTodayIso);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -51,8 +53,15 @@ export default function BookingFlow({ barber }: BookingFlowProps) {
         </Step>
       </div>
 
+      {!isBookable && (
+        <p className="rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-foreground/80 lg:col-span-2">
+          Bu usta hali tasdiqlanmagan, shuning uchun bron qilish vaqtincha yopiq.
+        </p>
+      )}
+
       <BookingSummary
         barber={barber}
+        canBook={isBookable}
         service={selectedService}
         dateIso={selectedDateIso}
         time={selectedTime}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import BarberCard from "@/components/home/BarberCard";
 import CategoryFilters, { CATEGORIES, type CategoryOption } from "@/components/home/CategoryFilters";
@@ -45,8 +46,19 @@ export default function BarberExplorer({ barbers, searchQuery }: BarberExplorerP
       <h2 className="font-serif text-xl font-bold text-foreground sm:text-2xl">Top ustalar</h2>
 
       {filteredBarbers.length === 0 ? (
-        <div className="rounded-3xl border border-white/30 bg-white/20 p-8 text-center text-sm text-muted-foreground backdrop-blur-xl">
-          Hech qanday usta topilmadi.
+        <div className="flex flex-col items-center gap-3 rounded-3xl border border-white/30 bg-white/20 p-10 text-center backdrop-blur-xl">
+          <p className="text-sm font-semibold text-foreground">
+            {searchQuery.trim() ? "Hech qanday usta topilmadi." : "Hozircha usta yo'q."}
+          </p>
+          <p className="max-w-sm text-xs text-muted-foreground">
+            Tasdiqlangan ustalar shu yerda va xaritada paydo bo&apos;ladi.
+          </p>
+          <Link
+            href="/register/barber"
+            className="btn-premium rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.35)] transition-all duration-200 hover:-translate-y-[1px] hover:bg-primary-hover active:scale-95"
+          >
+            Usta bo&apos;lib qo&apos;shilish
+          </Link>
         </div>
       ) : view === "list" ? (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

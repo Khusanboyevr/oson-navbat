@@ -5,6 +5,8 @@ import type { BarberProfile } from "@/lib/types";
 
 interface BookingSummaryProps {
   barber: BarberProfile;
+  /** False for an usta the backend doesn't know yet — bookings would be rejected. */
+  canBook: boolean;
   service: BarberProfile["services"][number] | null;
   dateIso: string;
   time: string | null;
@@ -13,17 +15,24 @@ interface BookingSummaryProps {
 
 export default function BookingSummary({
   barber,
+  canBook,
   service,
   dateIso,
   time,
   onContinue,
 }: BookingSummaryProps) {
-  const isComplete = Boolean(service && time);
+  const isComplete = Boolean(service && time) && canBook;
   const priceLabel = service ? `${formatNumber(service.price)} so'm` : "0 so'm";
   const dateLabel = formatDateLabel(dateIso);
 
   /** What's still missing, so the button never just sits there disabled without a reason. */
-  const hint = !service ? "Xizmatni tanlang" : !time ? "Sana va vaqtni tanlang" : null;
+  const hint = !canBook
+    ? "Usta tasdiqlanmagan"
+    : !service
+      ? "Xizmatni tanlang"
+      : !time
+        ? "Sana va vaqtni tanlang"
+        : null;
 
   return (
     <>

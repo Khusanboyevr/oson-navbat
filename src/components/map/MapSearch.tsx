@@ -6,16 +6,23 @@ import { searchPlaces, type PlaceResult } from "@/lib/map";
 import type { BarberProfile, Coordinates } from "@/lib/types";
 
 interface MapSearchProps {
-  barbers: BarberProfile[];
   onSelectPlace: (coordinates: Coordinates, zoom?: number) => void;
-  onSelectBarber: (barber: BarberProfile) => void;
+  /** Omitted on the registration picker, where only places matter. */
+  barbers?: BarberProfile[];
+  onSelectBarber?: (barber: BarberProfile) => void;
+  placeholder?: string;
 }
 
 /** Nominatim asks for at most one request per second; this keeps us well under. */
 const DEBOUNCE_MS = 450;
 const MIN_QUERY = 3;
 
-export default function MapSearch({ barbers, onSelectPlace, onSelectBarber }: MapSearchProps) {
+export default function MapSearch({
+  onSelectPlace,
+  barbers = [],
+  onSelectBarber,
+  placeholder = "Joy yoki usta qidiring...",
+}: MapSearchProps) {
   const [query, setQuery] = useState("");
   const [places, setPlaces] = useState<PlaceResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -26,7 +33,7 @@ export default function MapSearch({ barbers, onSelectPlace, onSelectBarber }: Ma
 
   // Ustas are matched locally — no round trip needed for what's already loaded.
   const matchedBarbers =
-    normalized.length > 0
+    normalized.length > 0 && onSelectBarber
       ? barbers
           .filter(
             (barber) =>
@@ -90,7 +97,7 @@ export default function MapSearch({ barbers, onSelectPlace, onSelectBarber }: Ma
           }}
           onFocus={() => setIsOpen(true)}
           type="search"
-          placeholder="Joy yoki usta qidiring..."
+          placeholder={placeholder}
           aria-label="Xaritadan qidirish"
           className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
         />
@@ -122,7 +129,7 @@ export default function MapSearch({ barbers, onSelectPlace, onSelectBarber }: Ma
                   key={barber.id}
                   type="button"
                   onClick={() => {
-                    onSelectBarber(barber);
+                    onSelectBarber?.(barber);
                     setIsOpen(false);
                   }}
                   className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors duration-150 hover:bg-primary/10"

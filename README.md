@@ -23,7 +23,7 @@ A dedicated public link, separate from the customer login. A 3-step form collect
 | Step | Fields |
 |---|---|
 | Shaxsiy ma'lumotlar | ism, familiya, telefon, email, yashash joyi |
-| Ish joyi va lokatsiya | salon nomi, manzil, **map pin** (click, drag, or "mening joylashuvim"; the address auto-fills from the pin by reverse geocoding) |
+| Ish joyi va lokatsiya | salon nomi, manzil, **map pin** — search an address, click the map, drag the pin, or use "mening joylashuvim"; the address field auto-fills from wherever the pin lands |
 | Kasb va xizmatlar | yo'nalish, tajriba (yil), kasb, bio, profil rasmi, xizmatlar va narxlar |
 
 The application lands in the super admin's review queue. **On approval the public profile is generated automatically from exactly this data** — profession + experience become the headline, the address and pin become the map marker, the services become the booking menu. There is no second "fill in your profile" step, and the worker's Google account is switched to the `barber` role so `/admin` opens for them.

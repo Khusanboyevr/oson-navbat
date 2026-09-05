@@ -55,9 +55,21 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // Only barbers the backend knows can be booked; ids it issued carry this prefix.
-  const backendBarberId = body.barberId.startsWith("backend-")
-    ? body.barberId.slice("backend-".length)
-    : body.barberId;
+  // Anything else is a row that never reached the backend, and sending its id
+  // would just earn a "not a valid UUID" from the other side.
+  if (!body.barberId.startsWith("backend-")) {
+    return Response.json(
+      {
+        status: "error",
+        message:
+          "Bu usta hali backendda ro'yxatdan o'tmagan, shuning uchun bron qilib bo'lmaydi. " +
+          "Super admin uni tasdiqlagach bron ochiladi.",
+      },
+      { status: 409 }
+    );
+  }
+
+  const backendBarberId = body.barberId.slice("backend-".length);
 
   const result = await createBooking(await getBackendCookie(), {
     barberId: backendBarberId,
