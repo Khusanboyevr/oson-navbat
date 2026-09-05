@@ -1,5 +1,6 @@
 import { getPublicBarbers } from "@/lib/server/barbers-service";
-import { getCurrentUser, unauthorized } from "@/lib/server/session";
+import { fetchOwnBarber, updateOwnBarber } from "@/lib/server/backend";
+import { getBackendCookie, getCurrentUser, unauthorized } from "@/lib/server/session";
 import { createBarber, findBarberByEmail, updateBarber } from "@/lib/server/store";
 import type { BarberProfile } from "@/lib/types";
 
@@ -7,13 +8,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * An usta's own profile: their photo, bio and service menu.
+ * An usta's own profile: photo, bio and service menu.
  *
- * The backend has no self-service endpoint for barbers yet — it creates and edits
- * them only under `/super-admin/`, which an usta has no rights to, and its barber
- * payload carries no photo field at all. So these edits are stored here and
- * overlaid onto the public listing (see `getPublicBarbers`). They keep working
- * unchanged the day the backend accepts them.
+ * The backend owns this at `GET`/`PATCH /barber/me/` (singular — `/barbers/` is
+ * the open catalog). Everything is written there first; the local copy is kept in
+ * step so the panel still works, and takes over entirely if the backend is
+ * unreachable.
  */
 
 interface ServiceInput {
@@ -42,8 +42,8 @@ function parseServices(raw: unknown): BarberProfile["services"] | null {
     .filter((service) => service.name.length > 0 && service.price > 0);
 }
 
-/** The signed-in usta's profile, whether it lives locally or came from the backend. */
-async function resolveOwnProfile(email: string): Promise<BarberProfile | null> {
+/** The local mirror, used when the backend has nothing to say. */
+async function resolveLocalProfile(email: string): Promise<BarberProfile | null> {
   const local = await findBarberByEmail(email);
   if (local) return local;
 
@@ -55,37 +55,30 @@ export async function GET(): Promise<Response> {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const profile = await resolveOwnProfile(user.email);
-  return Response.json({ status: "ok", data: profile });
+  const remote = await fetchOwnBarber(await getBackendCookie());
+  if (remote.ok && remote.data) {
+    return Response.json({ status: "ok", data: remote.data, meta: { backendOk: true } });
+  }
+
+  const local = await resolveLocalProfile(user.email);
+  return Response.json({
+    status: "ok",
+    data: local,
+    meta: { backendOk: false, backendError: remote.error },
+  });
 }
 
 export async function PATCH(request: Request): Promise<Response> {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (user.role === "client") {
-    return Response.json(
-      { status: "error", message: "Bu amal faqat ustalar uchun" },
-      { status: 403 }
-    );
+    return Response.json({ status: "error", message: "Bu amal faqat ustalar uchun" }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as {
-    photo?: string | null;
-    bio?: string;
-    services?: unknown;
-  };
+  const body = (await request.json().catch(() => ({}))) as { bio?: string; services?: unknown };
 
   const patch: Partial<BarberProfile> = {};
-
-  if (body.photo === null) patch.photo = null;
-  if (typeof body.photo === "string" && body.photo.startsWith("data:image/")) {
-    if (body.photo.length > 700_000) {
-      return Response.json({ status: "error", message: "Rasm hajmi juda katta" }, { status: 400 });
-    }
-    patch.photo = body.photo;
-  }
   if (typeof body.bio === "string") patch.bio = body.bio.trim();
-
   const services = parseServices(body.services);
   if (services) patch.services = services;
 
@@ -93,19 +86,31 @@ export async function PATCH(request: Request): Promise<Response> {
     return Response.json({ status: "error", message: "O'zgartirish uchun maydon yo'q" }, { status: 400 });
   }
 
-  const existing = await resolveOwnProfile(user.email);
-  if (!existing) {
-    return Response.json(
-      { status: "error", message: "Profilingiz hali yaratilmagan — arizangiz tasdiqlanishini kuting." },
-      { status: 404 }
-    );
+  const remote = await updateOwnBarber(await getBackendCookie(), {
+    bio: patch.bio,
+    services: patch.services,
+  });
+
+  // Mirror locally either way: the panel reads this copy when the backend is down,
+  // and the public listing falls back to it for fields the backend leaves empty.
+  const local = await findBarberByEmail(user.email);
+  if (local) {
+    await updateBarber(local.id, patch);
+  } else {
+    const base = remote.data ?? (await resolveLocalProfile(user.email));
+    if (base) {
+      await createBarber({ ...base, ...patch, source: "local", avatarColor: base.avatarColor });
+    }
   }
 
-  // A backend-owned row has no local copy to edit, so make one that shadows it.
-  const local = await findBarberByEmail(user.email);
-  const saved = local
-    ? await updateBarber(local.id, patch)
-    : await createBarber({ ...existing, ...patch, source: "local", avatarColor: existing.avatarColor });
+  if (!remote.ok) {
+    const saved = await resolveLocalProfile(user.email);
+    return Response.json({
+      status: "ok",
+      data: saved,
+      meta: { backendOk: false, backendError: remote.error },
+    });
+  }
 
-  return Response.json({ status: "ok", data: saved });
+  return Response.json({ status: "ok", data: remote.data, meta: { backendOk: true } });
 }

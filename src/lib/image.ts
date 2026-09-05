@@ -25,3 +25,13 @@ export async function fileToAvatarDataUrl(file: File, maxSize = 512): Promise<st
 
   return canvas.toDataURL("image/jpeg", 0.82);
 }
+
+/**
+ * Same downscale, but yielding a JPEG `Blob` for a `multipart/form-data` upload —
+ * which is how the backend takes profile photos (field name `avatar`).
+ */
+export async function fileToAvatarBlob(file: File, maxSize = 512): Promise<Blob> {
+  const dataUrl = await fileToAvatarDataUrl(file, maxSize);
+  const response = await fetch(dataUrl);
+  return response.blob();
+}

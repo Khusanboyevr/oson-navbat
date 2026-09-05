@@ -31,7 +31,7 @@ The application lands in the super admin's review queue. **On approval the publi
 ### For barbers (`/admin`)
 - Daily schedule with today's clients, pending count, and today's earnings, computed live
 - Accept / cancel / complete actions on each booking
-- **Mening profilim** (`/admin/profile`) — the usta's own profile photo, bio and an unlimited service menu (add, edit, remove). Whatever is saved here is what customers see on the map card and the booking page
+- **Mening profilim** (`/admin/profile`) — the usta's own profile photo, bio and an unlimited service menu (add, edit, remove), all through `/barber/me/`. Whatever is saved here is what customers see on the map card and the booking page
 
 ### For platform admins (`/super-admin`)
 - Live KPIs: registered accounts, active ustas, pending applications — plus whatever numeric totals `GET /super-admin/stats/` returns, rendered generically so a change in its shape can't break the page
@@ -155,7 +155,8 @@ Users, barbers and salons live on the backend. This app keeps a thin server laye
 | `/api/notifications/read` | `PUT` | signed in | Empty body = all, `{ ids }` = some |
 | `/api/notifications/vapid-key` | `GET` | — | Web Push public key |
 | `/api/notifications/subscribe` | `POST` | signed in | Registers a `PushSubscription` |
-| `/api/me/barber` | `GET`, `PATCH` | signed-in usta | Own photo, bio and services |
+| `/api/me/barber` | `GET`, `PATCH` | signed-in usta | `GET`/`PATCH /barber/me/` |
+| `/api/me/barber/avatar` | `POST`, `DELETE` | signed-in usta | Photo upload (multipart `avatar`) |
 | `/api/bookings` | `GET`, `POST` | — | Still a stub over mock booking data |
 
 Bookings are the one flow still running on mock data (`src/lib/bookings.ts`) — everything auth-, worker- and map-related is real.
@@ -169,7 +170,20 @@ Bookings are the one flow still running on mock data (`src/lib/bookings.ts`) —
 
 **Auth:** `/auth/methods/`, `/auth/csrf/`, `/auth/me/`, `/auth/google/` (POST `{ id_token }` → `{ user, is_new_user }`), `/auth/logout/`, `/auth/refresh/`. `/auth/otp/*` is gone (404) — SMS login no longer exists anywhere.
 
-**Open catalog (no auth, read-only by design):** `/salons/`, `/barbers/`, `/reviews/`. They answer `405` to `POST` on purpose — an open endpoint that accepted writes would let anyone publish a fake salon. Creating and editing happens under `/super-admin/`.
+**Open catalog (no auth, read-only by design):** `/salons/`, `/barbers/`, `/reviews/`. They answer `405` to `POST` on purpose — an open endpoint that accepted writes would let anyone publish a fake salon. Creating and editing happens elsewhere. Watch the paths: a `405` means the path exists but not that method, a `404` means the path is wrong.
+
+| Wrong | Right |
+|---|---|
+| `/barbers/me/` | `/barber/me/` (singular) |
+| `POST /barbers/` | `POST /super-admin/barbers/` |
+| `POST /salons/` | `POST /super-admin/salons/` |
+| `/auth/users/` | `/super-admin/users/` |
+
+**The usta's own record:** `GET` / `PATCH /barber/me/` — bio and services, no super admin rights needed.
+
+**Profile photos:** `multipart/form-data`, field name `avatar`, on `PATCH /barber/me/` (the usta) or `PATCH /super-admin/barbers/<id>/` (an admin). Max 5 MB, jpg/png/webp/gif, and the response carries the stored file's full URL. An image can't be sent on create, so approving an application creates the barber first and uploads the photo second. Never set `Content-Type` by hand — `fetch` writes it with the multipart boundary.
+
+Field names worth pinning down: account status is `is_active` (**`false` means blocked**, there is no `is_blocked`), the join date is `created_at`, roles are `client` / `barber` / `superadmin`, `specialty` is `men` / `women` / `kids` / `unisex` for both barbers and salons, salon ids are UUIDs, `page_size` caps at 100, and ratings are computed by the backend. `/barbers/` nests the salon, but the map reads the **top-level** `location_lat` / `location_lng`: the server already picks whichever of the barber's or the salon's location applies.
 
 **Super admin** (requires the `superadmin` role; everything else gets `403`):
 
@@ -195,6 +209,7 @@ Native **Web Push**, backed by the Django backend ([`pywebpush`](https://pypi.or
 - **`public/sw.js`** — service worker: shows the notification on `push`, focuses/opens a tab on `notificationclick`
 - **`src/lib/push-client.ts`** — permission + `PushManager` subscription, using the VAPID public key fetched from the backend (`GET /notifications/vapid-key/`, now reporting `configured: true`)
 - **`src/lib/notifications-api.ts`** — history, unread count, mark-as-read and subscribe, all through this app's `/api/notifications/*` routes (same-origin: no CSRF dance, no CORS problem, and the relay supplies the session the browser doesn't have)
+- One deliberate backend behaviour not to "fix": a review's `client.full_name` arrives abbreviated (`"Bobur Aliyev"` → `"Bobur A."`). Reviews are public, so the full name is withheld on purpose.
 - Push payload: `{ id, title, body, kind, url }`
 - Reminders arrive in a 45–75 minute window before the appointment (the backend's cron runs every 15 min and dedupes)
 
@@ -202,8 +217,8 @@ Native **Web Push**, backed by the Django backend ([`pywebpush`](https://pypi.or
 
 1. Share exact request/response shapes for `/bookings/` (and `/reviews/`) — bookings are the last flow still on mock data.
 2. Confirm the `specialty` codes accepted by `/super-admin/barbers/` and `/super-admin/salons/`. The frontend sends `men` / `women` / `kids` (mapped from erkaklar / ayollar / bolalar) and `unisex` was the example for salons; if the vocabulary differs, it is one constant to change (`SPECIALTY_CODE` in `src/lib/server/backend.ts`).
-3. **A self-service endpoint for ustas** — something like `GET`/`PATCH /barbers/me/`, so a barber can maintain their own photo, bio and services without super admin rights. Two gaps feed into this: the create payload has no photo field at all, and `/super-admin/*` is (correctly) closed to them. Until then those edits are stored by this app and overlaid onto the public listing, filling only fields the backend leaves empty.
-4. **Optionally an applications endpoint.** Worker self-registration has no home on the backend (barbers are created by a super admin), so `/register/barber` submissions queue in this app's store until approved. If that queue should live server-side, it needs an endpoint.
+3. **Confirm how to clear a profile photo.** Uploading is documented; removing isn't. `DELETE /api/me/barber/avatar` currently sends `PATCH /barber/me/` with `avatar: null` and surfaces whatever the backend answers.
+4. **Move the application queue server-side.** Worker self-registration has no home on the backend (barbers are created by a super admin), so `/register/barber` submissions queue in this app's store until approved. They live in a JSON file under `DATA_DIR` on the frontend server — not in the browser — but they are still invisible to any other deployment and vulnerable to a redeploy on an ephemeral filesystem. The backend dev has offered the table and endpoints; worth taking.
 
 ## 🔍 SEO & PWA
 

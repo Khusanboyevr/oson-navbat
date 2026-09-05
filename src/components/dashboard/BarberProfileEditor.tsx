@@ -3,7 +3,7 @@
 import { Check, Clock, GripVertical, Image as ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { formatNumber } from "@/lib/format";
-import { fileToAvatarDataUrl } from "@/lib/image";
+import { fileToAvatarBlob } from "@/lib/image";
 import type { BarberProfile } from "@/lib/types";
 
 interface ServiceDraft {
@@ -38,6 +38,7 @@ export default function BarberProfileEditor() {
   const [services, setServices] = useState<ServiceDraft[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
@@ -77,13 +78,46 @@ export default function BarberProfileEditor() {
     setServices((prev) => prev.map((service, i) => (i === index ? { ...service, ...patch } : service)));
   };
 
+  /**
+   * Photos upload immediately and on their own: the backend takes them as
+   * `multipart/form-data` (field `avatar`) on its own PATCH, not as part of the
+   * JSON save below.
+   */
   const handlePhoto = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || isUploading) return;
+    setIsUploading(true);
+    setError(null);
+
     try {
-      setPhoto(await fileToAvatarDataUrl(file));
-      setSavedAt(null);
+      const blob = await fileToAvatarBlob(file);
+      const form = new FormData();
+      form.append("avatar", blob, "avatar.jpg");
+
+      const response = await fetch("/api/me/barber/avatar", { method: "POST", body: form });
+      const payload = (await response.json().catch(() => ({}))) as {
+        data?: { photo: string | null };
+        message?: string;
+      };
+
+      if (!response.ok) {
+        setError(payload.message ?? "Rasmni yuklab bo'lmadi");
+        return;
+      }
+      setPhoto(payload.data?.photo ?? null);
     } catch (photoError) {
       setError(photoError instanceof Error ? photoError.message : "Rasmni yuklab bo'lmadi");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setIsUploading(true);
+    try {
+      await fetch("/api/me/barber/avatar", { method: "DELETE" });
+      setPhoto(null);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -97,7 +131,6 @@ export default function BarberProfileEditor() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          photo,
           bio,
           services: services
             .filter((service) => service.name.trim() && service.price.trim())
@@ -174,9 +207,13 @@ export default function BarberProfileEditor() {
             <p className="text-sm font-semibold text-foreground">{profile.name}</p>
             <p className="text-xs text-muted-foreground">{profile.specialty}</p>
             <div className="mt-1 flex flex-wrap gap-2">
-              <label className="btn-premium flex cursor-pointer items-center gap-2 rounded-full border border-white/50 bg-white/40 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-all duration-200 hover:bg-white/60 active:scale-95">
-                <Upload size={14} />
-                {photo ? "Rasmni almashtirish" : "Rasm yuklash"}
+              <label
+                className={`btn-premium flex items-center gap-2 rounded-full border border-white/50 bg-white/40 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-all duration-200 hover:bg-white/60 active:scale-95 ${
+                  isUploading ? "pointer-events-none opacity-60" : "cursor-pointer"
+                }`}
+              >
+                {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                {isUploading ? "Yuklanmoqda..." : photo ? "Rasmni almashtirish" : "Rasm yuklash"}
                 <input
                   type="file"
                   accept="image/*"
@@ -187,11 +224,9 @@ export default function BarberProfileEditor() {
               {photo && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setPhoto(null);
-                    setSavedAt(null);
-                  }}
-                  className="rounded-full bg-danger/10 px-4 py-2 text-xs font-semibold text-danger transition-all duration-200 hover:bg-danger/20 active:scale-95"
+                  disabled={isUploading}
+                  onClick={handleRemovePhoto}
+                  className="rounded-full bg-danger/10 px-4 py-2 text-xs font-semibold text-danger transition-all duration-200 hover:bg-danger/20 active:scale-95 disabled:opacity-50"
                 >
                   O&apos;chirish
                 </button>

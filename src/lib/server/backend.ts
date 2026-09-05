@@ -47,7 +47,11 @@ async function request<T>(
   const headers = new Headers(init.headers);
   headers.set("Origin", BACKEND_ORIGIN);
   headers.set("Referer", `${BACKEND_ORIGIN}/`);
-  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  // Never set Content-Type for multipart: fetch generates it with the boundary.
+  const isMultipart = typeof FormData !== "undefined" && init.body instanceof FormData;
+  if (init.body && !isMultipart && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   if (init.cookie) headers.set("Cookie", init.cookie);
 
   try {
@@ -446,11 +450,11 @@ export function mapBackendBarber(raw: RawBackendBarber): BarberProfile {
   const salon = raw.salon && typeof raw.salon === "object" ? raw.salon : null;
 
   const lat = toNumber(
-    salon?.location_lat ?? raw.location_lat ?? raw.latitude ?? raw.lat,
+    raw.location_lat ?? salon?.location_lat ?? raw.latitude ?? raw.lat,
     Number.NaN
   );
   const lng = toNumber(
-    salon?.location_lng ?? raw.location_lng ?? raw.longitude ?? raw.lng,
+    raw.location_lng ?? salon?.location_lng ?? raw.longitude ?? raw.lng,
     Number.NaN
   );
 
@@ -471,7 +475,7 @@ export function mapBackendBarber(raw: RawBackendBarber): BarberProfile {
       lng: Number.isFinite(lng) ? lng : 0,
     },
     avatarColor: "#145ee5",
-    photo: raw.photo ?? raw.avatar ?? null,
+    photo: raw.avatar ?? raw.photo ?? null,
     bio: raw.bio ?? raw.description ?? "",
     category,
     experienceYears: experience,
@@ -540,7 +544,7 @@ export async function createBackendBarberFromApplication(
     if (salon.ok && salon.data?.id) salonId = salon.data.id;
   }
 
-  return proxyAsUser<{ id?: string | number }>(
+  const created = await proxyAsUser<{ id?: string | number }>(
     "/super-admin/barbers/",
     {
       method: "POST",
@@ -563,6 +567,31 @@ export async function createBackendBarberFromApplication(
     },
     cookie
   );
+
+  // The create endpoint takes no image, so the photo goes up afterwards.
+  if (created.ok && created.data?.id && application.photo) {
+    const blob = dataUrlToBlob(application.photo);
+    if (blob) {
+      await uploadBarberAvatar(
+        `/super-admin/barbers/${created.data.id}/`,
+        blob,
+        "avatar.jpg",
+        cookie
+      );
+    }
+  }
+
+  return created;
+}
+
+/** Turns the applicant's inline photo back into a file for the multipart upload. */
+function dataUrlToBlob(dataUrl: string): Blob | null {
+  const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
+  if (!match) return null;
+
+  const [, type, base64] = match;
+  const binary = Buffer.from(base64, "base64");
+  return new Blob([new Uint8Array(binary)], { type });
 }
 
 /** `GET /super-admin/barbers/` — the full list, blocked ones included. */
@@ -597,11 +626,9 @@ export interface RawBackendUser {
   name?: string | null;
   phone?: string | null;
   role?: string | null;
-  is_blocked?: boolean;
+  /** `false` means blocked — the backend has no `is_blocked` field. */
   is_active?: boolean;
   avatar?: string | null;
-  photo?: string | null;
-  date_joined?: string;
   created_at?: string;
 }
 
@@ -620,10 +647,10 @@ export function mapBackendUser(raw: RawBackendUser): AppUser {
     googleSub: null,
     email: raw.email ?? "",
     name: raw.full_name ?? raw.name ?? raw.email ?? "Foydalanuvchi",
-    picture: raw.avatar ?? raw.photo ?? null,
+    picture: raw.avatar ?? null,
     role: normalizeUserRole(raw.role),
-    status: raw.is_blocked === true || raw.is_active === false ? "blocked" : "active",
-    createdAt: raw.date_joined ?? raw.created_at ?? new Date().toISOString(),
+    status: raw.is_active === false ? "blocked" : "active",
+    createdAt: raw.created_at ?? new Date().toISOString(),
     syncedWithBackend: true,
   };
 }
@@ -675,4 +702,58 @@ export async function fetchAdminStats(
   period: "day" | "week" | "month" | "year" | "all" = "all"
 ): Promise<ProxyResult<BackendStats>> {
   return proxyAsUser<BackendStats>(`/super-admin/stats/?period=${period}`, {}, cookie);
+}
+
+/* -------------------------------------------------- the usta's own profile */
+
+/**
+ * `GET /barber/me/` — note the singular path: `/barbers/` is the open catalog,
+ * `/barber/me/` is the signed-in usta's own record.
+ */
+export async function fetchOwnBarber(cookie: string | null): Promise<ProxyResult<BarberProfile>> {
+  const result = await proxyAsUser<RawBackendBarber>("/barber/me/", {}, cookie);
+  return { ...result, data: result.ok && result.data ? mapBackendBarber(result.data) : null };
+}
+
+/** `PATCH /barber/me/` — bio and the service menu the usta maintains themselves. */
+export async function updateOwnBarber(
+  cookie: string | null,
+  patch: { bio?: string; services?: { name: string; price: number; durationMinutes: number }[] }
+): Promise<ProxyResult<BarberProfile>> {
+  const body: Record<string, unknown> = {};
+  if (patch.bio !== undefined) body.bio = patch.bio;
+  if (patch.services) {
+    body.services = patch.services.map((service) => ({
+      name: service.name,
+      price: service.price,
+      duration_minutes: service.durationMinutes,
+    }));
+  }
+
+  const result = await proxyAsUser<RawBackendBarber>(
+    "/barber/me/",
+    { method: "PATCH", body: JSON.stringify(body) },
+    cookie
+  );
+
+  return { ...result, data: result.ok && result.data ? mapBackendBarber(result.data) : null };
+}
+
+/**
+ * Uploads a profile photo as `multipart/form-data` under the field name `avatar`.
+ *
+ * The backend takes it on `PATCH`, never on create, and answers with the stored
+ * file's full URL. `path` is `/barber/me/` for an usta editing themselves, or
+ * `/super-admin/barbers/<id>/` for the super admin doing it on their behalf.
+ */
+export async function uploadBarberAvatar(
+  path: string,
+  file: Blob,
+  filename: string,
+  cookie: string | null
+): Promise<ProxyResult<RawBackendBarber>> {
+  const form = new FormData();
+  form.append("avatar", file, filename);
+
+  return proxyAsUser<RawBackendBarber>(path, { method: "PATCH", body: form }, cookie);
 }
