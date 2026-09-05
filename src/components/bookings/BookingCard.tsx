@@ -1,26 +1,25 @@
-import { Calendar, MapPin } from "lucide-react";
+import { Calendar, Clock, Loader2, Scissors } from "lucide-react";
 import Link from "next/link";
-import type { Barber } from "@/lib/barbers";
-import type { Booking, BookingStatus } from "@/lib/bookings";
+import { formatDateLabel } from "@/lib/dates";
 import { formatNumber } from "@/lib/format";
+import type { AppBooking, BookingStatusKey } from "@/lib/types";
 
 interface BookingCardProps {
-  booking: Booking;
-  barber: Barber;
+  booking: AppBooking;
+  isBusy: boolean;
   onCancel: (id: string) => void;
 }
 
-const STATUS_CONFIG: Record<BookingStatus, { label: string; className: string }> = {
+const STATUS_CONFIG: Record<BookingStatusKey, { label: string; className: string }> = {
   pending: { label: "⏳ Kutilmoqda", className: "border-accent/30 bg-accent/15 text-accent" },
   confirmed: { label: "Tasdiqlangan", className: "border-primary/30 bg-primary/15 text-primary" },
   completed: { label: "✅ Yakunlangan", className: "border-white/40 bg-white/30 text-foreground/60" },
   cancelled: { label: "Bekor qilindi", className: "border-white/30 bg-white/15 text-foreground/40" },
 };
 
-export default function BookingCard({ booking, barber, onCancel }: BookingCardProps) {
+export default function BookingCard({ booking, isBusy, onCancel }: BookingCardProps) {
   const status = STATUS_CONFIG[booking.status];
   const isActive = booking.status === "pending" || booking.status === "confirmed";
-  const directionsUrl = `https://yandex.com/maps/?pt=${barber.coordinates.lng},${barber.coordinates.lat}&z=16&l=map`;
 
   return (
     <div
@@ -29,18 +28,16 @@ export default function BookingCard({ booking, barber, onCancel }: BookingCardPr
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <Link href={`/barber/${barber.id}`} className="flex min-w-0 items-center gap-3">
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-semibold text-white"
-            style={{ backgroundColor: barber.avatarColor }}
-          >
-            {barber.name.charAt(0)}
+        {booking.barberId ? (
+          <Link href={`/barber/${booking.barberId}`} className="flex min-w-0 items-center gap-3">
+            <BarberBadge name={booking.barberName} service={booking.serviceName} />
+          </Link>
+        ) : (
+          <div className="flex min-w-0 items-center gap-3">
+            <BarberBadge name={booking.barberName} service={booking.serviceName} />
           </div>
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-foreground">{barber.name}</h3>
-            <p className="truncate text-xs text-muted-foreground">{booking.serviceName}</p>
-          </div>
-        </Link>
+        )}
+
         <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${status.className}`}>
           {status.label}
         </span>
@@ -49,37 +46,46 @@ export default function BookingCard({ booking, barber, onCancel }: BookingCardPr
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
         <span className="flex items-center gap-1">
           <Calendar size={14} />
-          {booking.dateLabel}, {booking.time}
+          {booking.date ? formatDateLabel(booking.date) : "Sana ko'rsatilmagan"}
+          {booking.time && `, ${booking.time}`}
         </span>
-        <span className="flex items-center gap-1">
-          <MapPin size={14} />
-          {barber.location}
-        </span>
+        {booking.durationMinutes > 0 && (
+          <span className="flex items-center gap-1">
+            <Clock size={14} />
+            {booking.durationMinutes} daqiqa
+          </span>
+        )}
       </div>
 
       <div className="flex items-center justify-between border-t border-white/30 pt-4">
         <span className="text-sm font-bold text-foreground">{formatNumber(booking.price)} so&apos;m</span>
 
         {isActive && (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onCancel(booking.id)}
-              className="btn-premium rounded-full border border-white/50 bg-white/30 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/45 active:scale-95"
-            >
-              Bekor qilish
-            </button>
-            <a
-              href={directionsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-premium rounded-full bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground shadow-[0_4px_16px_rgba(4,20,73,0.3)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-[0_8px_20px_rgba(4,20,73,0.4)] active:scale-95"
-            >
-              Yo&apos;nalish olish
-            </a>
-          </div>
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={() => onCancel(booking.id)}
+            className="btn-premium flex items-center gap-1.5 rounded-full border border-white/50 bg-white/30 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/45 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isBusy && <Loader2 size={12} className="animate-spin" />}
+            Bekor qilish
+          </button>
         )}
       </div>
     </div>
+  );
+}
+
+function BarberBadge({ name, service }: { name: string; service: string }) {
+  return (
+    <>
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-lg font-semibold text-primary-foreground">
+        {name ? name.charAt(0) : <Scissors size={20} />}
+      </div>
+      <div className="min-w-0">
+        <h3 className="truncate text-base font-semibold text-foreground">{name || "Usta"}</h3>
+        <p className="truncate text-xs text-muted-foreground">{service}</p>
+      </div>
+    </>
   );
 }

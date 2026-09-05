@@ -5,8 +5,7 @@ import BookingModal from "@/components/barber/BookingModal";
 import BookingSummary from "@/components/barber/BookingSummary";
 import DateTimePicker from "@/components/barber/DateTimePicker";
 import ServiceList from "@/components/barber/ServiceList";
-import { formatDateLabel, getTashkentTodayIso } from "@/lib/dates";
-import { formatNumber } from "@/lib/format";
+import { getTashkentTodayIso } from "@/lib/dates";
 import type { BarberProfile } from "@/lib/types";
 
 interface BookingFlowProps {
@@ -42,6 +41,8 @@ export default function BookingFlow({ barber }: BookingFlowProps) {
 
         <Step index={2} title="Sana va vaqtni tanlang" done={Boolean(selectedTime)}>
           <DateTimePicker
+            barberId={barber.id}
+            serviceId={selectedServiceId}
             selectedDateIso={selectedDateIso}
             selectedTime={selectedTime}
             onSelectDate={handleSelectDate}
@@ -58,16 +59,14 @@ export default function BookingFlow({ barber }: BookingFlowProps) {
         onContinue={() => setIsModalOpen(true)}
       />
 
-      {isModalOpen && (
+      {isModalOpen && selectedService && selectedTime && (
         <BookingModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          summary={{
-            serviceName: selectedService?.name ?? "",
-            dateLabel: formatDateLabel(selectedDateIso),
-            time: selectedTime ?? "",
-            priceLabel: selectedService ? `${formatNumber(selectedService.price)} so'm` : "",
-          }}
+          barber={barber}
+          service={selectedService}
+          dateIso={selectedDateIso}
+          time={selectedTime}
         />
       )}
     </div>

@@ -85,6 +85,3 @@ export const TIME_SLOTS = [
   "18:00",
 ];
 
-export function isSlotBooked(dateIndex: number, slotIndex: number): boolean {
-  return (dateIndex * 5 + slotIndex * 3) % 7 === 0;
-}

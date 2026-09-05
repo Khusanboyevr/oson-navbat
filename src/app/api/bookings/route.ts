@@ -1,34 +1,77 @@
-import { NextResponse } from "next/server";
-import { BOOKINGS } from "@/lib/bookings";
+import { createBooking, fetchBookings } from "@/lib/server/bookings-api";
+import { getBackendCookie, getCurrentUser, unauthorized } from "@/lib/server/session";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /**
- * Stub only — returns the same mock data the frontend already renders from
- * `lib/bookings.ts`. Bookings are the last flow still on mock data: once the
- * Django backend documents `/bookings/`, these handlers proxy to it the way
- * `src/lib/server/backend.ts` does for auth and barbers. The response envelope
- * below is the contract the frontend expects to keep working against.
+ * Bookings, relayed to the backend as the signed-in user.
+ *
+ * `?scope=today` is what the usta panel asks for; without it the backend returns
+ * the caller's own bookings.
  */
+export async function GET(request: Request): Promise<Response> {
+  const user = await getCurrentUser();
+  if (!user) return unauthorized();
 
-export async function GET() {
-  return NextResponse.json({ status: "success", message: "API is ready", data: BOOKINGS });
-}
+  const params = new URL(request.url).searchParams;
+  const scope = params.get("scope") === "today" ? ("today" as const) : undefined;
+  const date = params.get("date") ?? undefined;
 
-export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ status: "error", message: "Invalid JSON body" }, { status: 400 });
+  const result = await fetchBookings(await getBackendCookie(), { scope, date });
+
+  if (!result.ok) {
+    return Response.json(
+      { status: "error", message: result.error ?? "Bronlarni yuklab bo'lmadi" },
+      { status: result.status || 502 }
+    );
   }
 
-  const newBooking = {
-    id: `mock-${Date.now()}`,
-    status: "pending",
-    ...(typeof body === "object" && body !== null ? body : {}),
+  return Response.json({ status: "ok", data: result.data ?? [] });
+}
+
+/** Creates a booking. A rejection is passed through untouched — never a fake success. */
+export async function POST(request: Request): Promise<Response> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return Response.json(
+      { status: "error", message: "Bron qilish uchun tizimga kiring" },
+      { status: 401 }
+    );
+  }
+
+  const body = (await request.json().catch(() => ({}))) as {
+    barberId?: string;
+    serviceId?: string;
+    date?: string;
+    time?: string;
   };
 
-  return NextResponse.json(
-    { status: "success", message: "API is ready", data: newBooking },
-    { status: 201 }
-  );
+  if (!body.barberId || !body.serviceId || !body.date || !body.time) {
+    return Response.json(
+      { status: "error", message: "Usta, xizmat, sana va vaqt to'liq bo'lishi kerak" },
+      { status: 400 }
+    );
+  }
+
+  // Only barbers the backend knows can be booked; ids it issued carry this prefix.
+  const backendBarberId = body.barberId.startsWith("backend-")
+    ? body.barberId.slice("backend-".length)
+    : body.barberId;
+
+  const result = await createBooking(await getBackendCookie(), {
+    barberId: backendBarberId,
+    serviceId: body.serviceId,
+    date: body.date,
+    time: body.time,
+  });
+
+  if (!result.ok) {
+    return Response.json(
+      { status: "error", message: result.error ?? "Bronni saqlab bo'lmadi" },
+      { status: result.status || 502 }
+    );
+  }
+
+  return Response.json({ status: "ok", data: result.data }, { status: 201 });
 }

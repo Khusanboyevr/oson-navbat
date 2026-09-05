@@ -13,7 +13,7 @@ Sign-in is **Google-only** — no phone number, no SMS code (the backend removed
 - **Home** — hero search, category filters, and a toggle between a card grid and a live **map** of every approved worker (Leaflet + OpenStreetMap, no API key needed). The list refreshes on a timer and on tab focus, so newly approved ustas appear without a redeploy
 - **Barber profile** — a full page for the usta: photo over a colour wash drawn from their own accent, rating / category / experience badges, address, phone and directions, then two numbered steps (service, then date and time) beside a running booking summary (desktop sidebar / mobile sticky bar)
 - **Booking confirmation** — a glass modal that confirms straight from the signed-in Google account (no phone, no SMS code), without leaving the page
-- **My Bookings** — active vs. history tabs, status pills, cancel / get-directions actions
+- **My Bookings** — the customer's real bookings from the backend, split into active and history, cancellable in place
 - **Profile** — the signed-in Google account (name, email, avatar), language selector, a native Web Push notification toggle, role shortcuts (usta schedule / super admin panel), support and logout
 - **Notifications** — a bell icon in the header opens a glass dropdown with in-app notification history; the same events also arrive as native OS push notifications, even with the app closed
 
@@ -29,7 +29,7 @@ A dedicated public link, separate from the customer login. A 3-step form collect
 The application lands in the super admin's review queue. **On approval the public profile is generated automatically from exactly this data** — profession + experience become the headline, the address and pin become the map marker, the services become the booking menu. There is no second "fill in your profile" step, and the worker's Google account is switched to the `barber` role so `/admin` opens for them.
 
 ### For barbers (`/admin`)
-- Daily schedule with today's clients, pending count, and today's earnings, computed live
+- Daily schedule read from `GET /bookings/?scope=today`: today's clients, pending count and earnings, computed from it live
 - Accept / cancel / complete actions on each booking
 - **Mening profilim** (`/admin/profile`) — the usta's own profile photo, bio and an unlimited service menu (add, edit, remove), all through `/barber/me/`. Whatever is saved here is what customers see on the map card and the booking page
 
@@ -157,9 +157,11 @@ Users, barbers and salons live on the backend. This app keeps a thin server laye
 | `/api/notifications/subscribe` | `POST` | signed in | Registers a `PushSubscription` |
 | `/api/me/barber` | `GET`, `PATCH` | signed-in usta | `GET`/`PATCH /barber/me/` |
 | `/api/me/barber/avatar` | `POST`, `DELETE` | signed-in usta | Photo upload (multipart `avatar`) |
-| `/api/bookings` | `GET`, `POST` | — | Still a stub over mock booking data |
+| `/api/bookings` | `GET`, `POST` | signed in | `GET /bookings/` (`?scope=today`), `POST /bookings/` |
+| `/api/bookings/[id]` | `PATCH` | signed in | `/confirm/`, `/complete/`, `/cancel/` |
+| `/api/bookings/slots` | `GET` | — | Free times for an usta on a date |
 
-Bookings are the one flow still running on mock data (`src/lib/bookings.ts`) — everything auth-, worker- and map-related is real.
+Nothing renders invented data any more: the mock booking and schedule modules are gone, and a slot is only shown as taken when the backend says so.
 
 ## 🔌 Backend (Real API)
 
@@ -215,7 +217,7 @@ Native **Web Push**, backed by the Django backend ([`pywebpush`](https://pypi.or
 
 ## 🛠 What's next for the backend
 
-1. Share exact request/response shapes for `/bookings/` (and `/reviews/`) — bookings are the last flow still on mock data.
+1. **Confirm the booking payloads.** `API.md` lives in the backend repo, which this one can't read, so `POST /bookings/` currently sends `{ barber, service, date, time }` and `GET /bookings/available-slots/` asks with `?barber=&date=&service=`. Both surface the backend's own error rather than guessing further; if the field names differ, they are one file to change (`src/lib/server/bookings-api.ts`). Reads are mapped defensively and don't depend on exact names.
 2. Confirm the `specialty` codes accepted by `/super-admin/barbers/` and `/super-admin/salons/`. The frontend sends `men` / `women` / `kids` (mapped from erkaklar / ayollar / bolalar) and `unisex` was the example for salons; if the vocabulary differs, it is one constant to change (`SPECIALTY_CODE` in `src/lib/server/backend.ts`).
 3. **Confirm how to clear a profile photo.** Uploading is documented; removing isn't. `DELETE /api/me/barber/avatar` currently sends `PATCH /barber/me/` with `avatar: null` and surfaces whatever the backend answers.
 4. **Move the application queue server-side.** Worker self-registration has no home on the backend (barbers are created by a super admin), so `/register/barber` submissions queue in this app's store until approved. They live in a JSON file under `DATA_DIR` on the frontend server — not in the browser — but they are still invisible to any other deployment and vulnerable to a redeploy on an ephemeral filesystem. The backend dev has offered the table and endpoints; worth taking.

@@ -1,6 +1,12 @@
-import { getUpcomingDates, isSlotBooked, TIME_SLOTS } from "@/lib/dates";
+"use client";
+
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getUpcomingDates, TIME_SLOTS } from "@/lib/dates";
 
 interface DateTimePickerProps {
+  barberId: string;
+  serviceId: string | null;
   selectedDateIso: string;
   selectedTime: string | null;
   onSelectDate: (iso: string) => void;
@@ -10,16 +16,41 @@ interface DateTimePickerProps {
 const UPCOMING_DAYS = 7;
 
 export default function DateTimePicker({
+  barberId,
+  serviceId,
   selectedDateIso,
   selectedTime,
   onSelectDate,
   onSelectTime,
 }: DateTimePickerProps) {
   const dates = getUpcomingDates(UPCOMING_DAYS);
-  const selectedDateIndex = Math.max(
-    0,
-    dates.findIndex((date) => date.iso === selectedDateIso)
-  );
+  /** `null` means the backend couldn't tell us — then every slot is offered. */
+  const [available, setAvailable] = useState<string[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+
+    const query = new URLSearchParams({ barber: barberId, date: selectedDateIso });
+    if (serviceId) query.set("service", serviceId);
+
+    fetch(`/api/bookings/slots?${query.toString()}`, { signal: controller.signal, cache: "no-store" })
+      .then((response) => response.json() as Promise<{ data?: { available: string[] | null } }>)
+      .then((payload) => {
+        if (controller.signal.aborted) return;
+        setAvailable(payload.data?.available ?? null);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setAvailable(null);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [barberId, serviceId, selectedDateIso]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -46,18 +77,25 @@ export default function DateTimePicker({
         })}
       </div>
 
+      {isLoading && (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 size={13} className="animate-spin" />
+          Bo&apos;sh vaqtlar tekshirilmoqda...
+        </p>
+      )}
+
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-        {TIME_SLOTS.map((time, slotIndex) => {
-          const booked = isSlotBooked(selectedDateIndex, slotIndex);
-          const isSelected = !booked && time === selectedTime;
+        {TIME_SLOTS.map((time) => {
+          const taken = available !== null && !available.includes(time);
+          const isSelected = !taken && time === selectedTime;
           return (
             <button
               key={time}
               type="button"
-              disabled={booked}
+              disabled={taken}
               onClick={() => onSelectTime(time)}
               className={`rounded-xl border px-3 py-2.5 text-sm font-medium backdrop-blur-md transition-all duration-200 ease-in-out ${
-                booked
+                taken
                   ? "cursor-not-allowed border-white/30 bg-white/20 text-muted-foreground line-through"
                   : isSelected
                     ? "border-primary bg-primary text-primary-foreground hover:-translate-y-[1px] active:scale-95"

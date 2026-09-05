@@ -4,28 +4,35 @@ import { Check, Loader2, LogIn, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "@/components/providers/SessionProvider";
-
-interface BookingModalSummary {
-  serviceName: string;
-  dateLabel: string;
-  time: string;
-  priceLabel: string;
-}
+import { formatDateLabel } from "@/lib/dates";
+import { formatNumber } from "@/lib/format";
+import type { BarberProfile } from "@/lib/types";
 
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  summary: BookingModalSummary;
+  barber: BarberProfile;
+  service: BarberProfile["services"][number];
+  dateIso: string;
+  time: string;
 }
 
 /**
  * Booking confirmation.
  *
  * The customer is already identified by their Google account, so this asks for
- * nothing — no phone number, no SMS code. Signed-out visitors are sent to sign in
- * first.
+ * nothing — no phone number, no SMS code. The booking is created on the backend
+ * and a failure is shown as the backend described it, never swallowed behind a
+ * success screen.
  */
-export default function BookingModal({ isOpen, onClose, summary }: BookingModalProps) {
+export default function BookingModal({
+  isOpen,
+  onClose,
+  barber,
+  service,
+  dateIso,
+  time,
+}: BookingModalProps) {
   const { user, isLoading } = useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDone, setIsDone] = useState(false);
@@ -60,13 +67,17 @@ export default function BookingModal({ isOpen, onClose, summary }: BookingModalP
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          serviceName: summary.serviceName,
-          dateLabel: summary.dateLabel,
-          time: summary.time,
+          barberId: barber.id,
+          serviceId: service.id,
+          date: dateIso,
+          time,
         }),
       });
+
+      const payload = (await response.json().catch(() => ({}))) as { message?: string };
+
       if (!response.ok) {
-        setError("Bronni saqlab bo'lmadi, qaytadan urinib ko'ring");
+        setError(payload.message ?? "Bronni saqlab bo'lmadi, qaytadan urinib ko'ring");
         return;
       }
       setIsDone(true);
@@ -106,7 +117,8 @@ export default function BookingModal({ isOpen, onClose, summary }: BookingModalP
             </div>
 
             <p className="rounded-xl border border-white/30 bg-white/25 px-4 py-2.5 text-xs text-muted-foreground backdrop-blur-md">
-              {summary.serviceName} • {summary.dateLabel}, {summary.time} • {summary.priceLabel}
+              {barber.name} • {service.name} • {formatDateLabel(dateIso)}, {time} •{" "}
+              {formatNumber(service.price)} so&apos;m
             </p>
 
             {error && (

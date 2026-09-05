@@ -1,22 +1,29 @@
-import { Clock, Phone } from "lucide-react";
+import { Clock, Loader2, Phone } from "lucide-react";
 import { formatNumber } from "@/lib/format";
-import type { ScheduleEntry, ScheduleStatus } from "@/lib/schedule";
+import type { AppBooking, BookingStatusKey } from "@/lib/types";
 
 interface AdminBookingCardProps {
-  entry: ScheduleEntry;
+  entry: AppBooking;
+  isBusy: boolean;
   onConfirm: (id: string) => void;
   onCancel: (id: string) => void;
   onComplete: (id: string) => void;
 }
 
-const STATUS_CONFIG: Record<ScheduleStatus, { label: string; className: string }> = {
+const STATUS_CONFIG: Record<BookingStatusKey, { label: string; className: string }> = {
   pending: { label: "⏳ Kutilmoqda", className: "border-accent/30 bg-accent/10 text-accent" },
   confirmed: { label: "Tasdiqlangan", className: "border-primary/30 bg-primary/10 text-primary" },
   completed: { label: "✅ Yakunlangan", className: "border-white/40 bg-white/30 text-foreground/60" },
   cancelled: { label: "Bekor qilindi", className: "border-white/30 bg-white/15 text-foreground/40" },
 };
 
-export default function AdminBookingCard({ entry, onConfirm, onCancel, onComplete }: AdminBookingCardProps) {
+export default function AdminBookingCard({
+  entry,
+  isBusy,
+  onConfirm,
+  onCancel,
+  onComplete,
+}: AdminBookingCardProps) {
   const status = STATUS_CONFIG[entry.status];
   const isActive = entry.status === "pending" || entry.status === "confirmed";
 
@@ -28,11 +35,15 @@ export default function AdminBookingCard({ entry, onConfirm, onCancel, onComplet
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-foreground">{entry.clientName}</h3>
-          <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-            <Phone size={12} />
-            {entry.clientPhone}
-          </p>
+          <h3 className="truncate text-sm font-semibold text-foreground">
+            {entry.clientName || "Mijoz"}
+          </h3>
+          {entry.clientPhone && (
+            <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+              <Phone size={12} />
+              {entry.clientPhone}
+            </p>
+          )}
         </div>
         <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${status.className}`}>
           {status.label}
@@ -50,24 +61,28 @@ export default function AdminBookingCard({ entry, onConfirm, onCancel, onComplet
 
       {isActive && (
         <div className="flex flex-wrap items-center gap-2 border-t border-white/30 pt-4">
+          {isBusy && <Loader2 size={14} className="animate-spin text-muted-foreground" />}
           <button
             type="button"
+            disabled={isBusy}
             onClick={() => onConfirm(entry.id)}
-            className="btn-premium rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.3)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_20px_rgba(20,94,229,0.4)] active:scale-95"
+            className="btn-premium rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-[0_4px_16px_rgba(20,94,229,0.3)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-primary-hover hover:shadow-[0_8px_20px_rgba(20,94,229,0.4)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Tasdiqlash
           </button>
           <button
             type="button"
+            disabled={isBusy}
             onClick={() => onComplete(entry.id)}
-            className="btn-premium rounded-full bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground shadow-[0_4px_16px_rgba(4,20,73,0.3)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-[0_8px_20px_rgba(4,20,73,0.4)] active:scale-95"
+            className="btn-premium rounded-full bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground shadow-[0_4px_16px_rgba(4,20,73,0.3)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-[0_8px_20px_rgba(4,20,73,0.4)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Yakunlash
           </button>
           <button
             type="button"
+            disabled={isBusy}
             onClick={() => onCancel(entry.id)}
-            className="btn-premium rounded-full border border-white/50 bg-white/30 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/45 active:scale-95"
+            className="btn-premium rounded-full border border-white/50 bg-white/30 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-white/45 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Bekor qilish
           </button>

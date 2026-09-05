@@ -102,3 +102,23 @@ export interface SessionUser {
   barberId: string | null;
   applicationStatus: ApplicationStatus | null;
 }
+
+export type BookingStatusKey = "pending" | "confirmed" | "completed" | "cancelled";
+
+/** A booking as the app renders it, whichever shape the backend sent. */
+export interface AppBooking {
+  id: string;
+  status: BookingStatusKey;
+  /** ISO date (YYYY-MM-DD). */
+  date: string;
+  /** HH:MM. */
+  time: string;
+  serviceName: string;
+  price: number;
+  durationMinutes: number;
+  barberId: string | null;
+  barberName: string;
+  /** Only present on the usta's side of a booking. */
+  clientName: string;
+  clientPhone: string;
+}
