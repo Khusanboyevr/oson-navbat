@@ -2,23 +2,31 @@
 
 import "leaflet/dist/leaflet.css";
 
-import Link from "next/link";
-import { useEffect, useMemo } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MapContainer, Marker, TileLayer, ZoomControl, useMap } from "react-leaflet";
+import BarberDetailPanel from "@/components/map/BarberDetailPanel";
+import MapSearch from "@/components/map/MapSearch";
 import { createPinIcon } from "@/components/map/markerIcon";
 import { DEFAULT_ZOOM, TASHKENT_CENTER, TILE_ATTRIBUTION, TILE_URL } from "@/lib/map";
-import type { BarberProfile } from "@/lib/types";
+import type { BarberProfile, Coordinates } from "@/lib/types";
 
 interface BarberMapProps {
   barbers: BarberProfile[];
 }
 
-/** Keeps every marker in view as workers are added, removed or filtered. */
-function FitToMarkers({ barbers }: BarberMapProps) {
+interface MapTarget {
+  coordinates: Coordinates;
+  zoom: number;
+  /** Bumped on every request so selecting the same place twice still recenters. */
+  nonce: number;
+}
+
+/** Fits every marker in view — but only until the user searches or picks an usta. */
+function FitToMarkers({ barbers, enabled }: { barbers: BarberProfile[]; enabled: boolean }) {
   const map = useMap();
 
   useEffect(() => {
-    if (barbers.length === 0) return;
+    if (!enabled || barbers.length === 0) return;
 
     if (barbers.length === 1) {
       const [only] = barbers;
@@ -28,31 +36,66 @@ function FitToMarkers({ barbers }: BarberMapProps) {
 
     const bounds = barbers.map((barber) => [barber.coordinates.lat, barber.coordinates.lng] as [number, number]);
     map.fitBounds(bounds, { padding: [48, 48], maxZoom: 14 });
-  }, [barbers, map]);
+  }, [barbers, enabled, map]);
+
+  return null;
+}
+
+/** Flies to a searched place or a selected usta. */
+function FlyTo({ target }: { target: MapTarget | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!target) return;
+    map.flyTo([target.coordinates.lat, target.coordinates.lng], target.zoom, { duration: 0.8 });
+  }, [target, map]);
 
   return null;
 }
 
 /**
- * The live map of every approved worker. It re-renders whenever the barber list
- * refreshes, so a newly approved usta appears without a deploy or a hard reload.
+ * The live map of every approved worker: search for a place or an usta, tap a pin
+ * to read the full profile, book from the panel's footer. It re-renders whenever
+ * the barber list refreshes, so a newly approved usta appears without a reload.
  */
 export default function BarberMap({ barbers }: BarberMapProps) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [target, setTarget] = useState<MapTarget | null>(null);
+  const nonceRef = useRef(0);
+
   const markers = useMemo(
     () => barbers.filter((barber) => barber.coordinates.lat !== 0 && barber.coordinates.lng !== 0),
     [barbers]
   );
 
+  // Derived, not stored: an usta who disappears from a refreshed list simply
+  // stops being selected, with no effect needed to clean up after them.
+  const selected = markers.find((barber) => barber.id === selectedId) ?? null;
+
+  const focusOn = (coordinates: Coordinates, zoom = 15) => {
+    nonceRef.current += 1;
+    setTarget({ coordinates, zoom, nonce: nonceRef.current });
+  };
+
+  const openBarber = (barber: BarberProfile) => {
+    setSelectedId(barber.id);
+    focusOn(barber.coordinates, 16);
+  };
+
   return (
-    <div className="h-[420px] w-full overflow-hidden rounded-3xl border border-white/30 shadow-[0_4px_30px_rgba(0,0,0,0.1)] sm:h-[540px]">
+    <div className="relative h-[460px] w-full overflow-hidden rounded-3xl border border-white/30 shadow-[0_4px_30px_rgba(0,0,0,0.1)] sm:h-[560px]">
       <MapContainer
         center={[TASHKENT_CENTER.lat, TASHKENT_CENTER.lng]}
         zoom={DEFAULT_ZOOM}
         scrollWheelZoom
+        zoomControl={false}
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
-        <FitToMarkers barbers={markers} />
+        {/* Bottom right, so it never sits under the search box. */}
+        <ZoomControl position="bottomright" />
+        <FitToMarkers barbers={markers} enabled={target === null} />
+        <FlyTo target={target} />
 
         {markers.map((barber) => (
           <Marker
@@ -62,41 +105,16 @@ export default function BarberMap({ barbers }: BarberMapProps) {
               color: barber.avatarColor,
               label: barber.name.charAt(0).toUpperCase(),
               photo: barber.photo,
+              active: selected?.id === barber.id,
             })}
-          >
-            <Popup>
-              <div className="flex min-w-[200px] flex-col gap-2">
-                <div className="flex items-center gap-2.5">
-                  {barber.photo ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- data URL from the applicant's upload
-                    <img src={barber.photo} alt="" className="h-10 w-10 rounded-xl object-cover" />
-                  ) : (
-                    <span
-                      className="flex h-10 w-10 items-center justify-center rounded-xl text-base font-bold text-white"
-                      style={{ backgroundColor: barber.avatarColor }}
-                    >
-                      {barber.name.charAt(0)}
-                    </span>
-                  )}
-                  <div>
-                    <p className="!m-0 text-sm font-semibold text-foreground">{barber.name}</p>
-                    <p className="!m-0 text-xs text-muted-foreground">{barber.specialty}</p>
-                  </div>
-                </div>
-
-                <p className="!m-0 text-xs text-muted-foreground">{barber.location}</p>
-
-                <Link
-                  href={`/barber/${barber.id}`}
-                  className="!mt-1 block rounded-lg bg-primary px-3 py-2 text-center text-xs font-semibold !text-primary-foreground !no-underline"
-                >
-                  Bron qilish
-                </Link>
-              </div>
-            </Popup>
-          </Marker>
+            eventHandlers={{ click: () => openBarber(barber) }}
+          />
         ))}
       </MapContainer>
+
+      <MapSearch barbers={markers} onSelectPlace={focusOn} onSelectBarber={openBarber} />
+
+      {selected && <BarberDetailPanel barber={selected} onClose={() => setSelectedId(null)} />}
     </div>
   );
 }
