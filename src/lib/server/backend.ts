@@ -1,4 +1,10 @@
-import type { BarberApplication, BarberCategoryKey, BarberProfile } from "@/lib/types";
+import type {
+  AppUser,
+  BarberApplication,
+  BarberCategoryKey,
+  BarberProfile,
+  UserRole,
+} from "@/lib/types";
 
 /**
  * Server-side bridge to the real Django backend (api.qulaynavbat.uz).
@@ -362,6 +368,19 @@ export async function proxyAsUser<T>(
 
 /* ----------------------------------------------------------------- barbers */
 
+export interface RawBackendSalon {
+  id?: number | string;
+  name?: string;
+  address?: string;
+  district?: string;
+  city?: string;
+  location_lat?: number | string;
+  location_lng?: number | string;
+  phone?: string;
+  specialty?: string;
+  description?: string;
+}
+
 interface RawBackendBarber {
   id: number | string;
   name?: string;
@@ -371,6 +390,11 @@ interface RawBackendBarber {
   rating?: number | string;
   address?: string;
   location?: string;
+  /** The salon owns the coordinates; it may arrive nested or as a bare id. */
+  salon?: RawBackendSalon | string | number | null;
+  salon_name?: string;
+  location_lat?: number | string;
+  location_lng?: number | string;
   latitude?: number | string;
   longitude?: number | string;
   lat?: number | string;
@@ -384,7 +408,14 @@ interface RawBackendBarber {
   phone?: string;
   email?: string;
   is_active?: boolean;
-  services?: { id?: number | string; name?: string; price?: number | string; duration?: number }[];
+  is_blocked?: boolean;
+  services?: {
+    id?: number | string;
+    name?: string;
+    price?: number | string;
+    duration?: number;
+    duration_minutes?: number;
+  }[];
 }
 
 interface PaginatedBackend<T> {
@@ -399,21 +430,42 @@ function toNumber(value: unknown, fallback: number): number {
 
 function normalizeCategory(raw?: string): BarberCategoryKey {
   const value = raw?.toLowerCase() ?? "";
-  if (value.includes("ayol") || value.includes("women") || value.includes("жен")) return "ayollar";
-  if (value.includes("bola") || value.includes("kids") || value.includes("дет")) return "bolalar";
+  if (value.includes("ayol") || value.includes("women") || value.includes("\u0436\u0435\u043d")) return "ayollar";
+  if (value.includes("bola") || value.includes("kids") || value.includes("\u0434\u0435\u0442")) return "bolalar";
   return "erkaklar";
 }
 
-function mapBackendBarber(raw: RawBackendBarber): BarberProfile {
-  const lat = toNumber(raw.latitude ?? raw.lat, Number.NaN);
-  const lng = toNumber(raw.longitude ?? raw.lng, Number.NaN);
+/** The backend's `specialty` codes, as used by `/super-admin/barbers/`. */
+const SPECIALTY_CODE: Record<BarberCategoryKey, string> = {
+  erkaklar: "men",
+  ayollar: "women",
+  bolalar: "kids",
+};
+
+export function mapBackendBarber(raw: RawBackendBarber): BarberProfile {
+  const salon = raw.salon && typeof raw.salon === "object" ? raw.salon : null;
+
+  const lat = toNumber(
+    salon?.location_lat ?? raw.location_lat ?? raw.latitude ?? raw.lat,
+    Number.NaN
+  );
+  const lng = toNumber(
+    salon?.location_lng ?? raw.location_lng ?? raw.longitude ?? raw.lng,
+    Number.NaN
+  );
+
+  const category = normalizeCategory(raw.specialty ?? raw.category);
+  const experience = raw.experience_years ?? 0;
+  const specialtyLabel = [salon?.name ?? raw.salon_name, experience > 0 ? `${experience} yil tajriba` : null]
+    .filter(Boolean)
+    .join(" \u2022 ");
 
   return {
     id: `backend-${raw.id}`,
-    name: raw.name ?? raw.full_name ?? "Usta",
-    specialty: raw.specialty ?? raw.specialization ?? "",
+    name: raw.full_name ?? raw.name ?? "Usta",
+    specialty: specialtyLabel || raw.specialization || "",
     rating: toNumber(raw.rating, 0),
-    location: raw.address ?? raw.location ?? "",
+    location: salon?.address ?? raw.address ?? raw.location ?? "",
     coordinates: {
       lat: Number.isFinite(lat) ? lat : 0,
       lng: Number.isFinite(lng) ? lng : 0,
@@ -421,64 +473,206 @@ function mapBackendBarber(raw: RawBackendBarber): BarberProfile {
     avatarColor: "#145ee5",
     photo: raw.photo ?? raw.avatar ?? null,
     bio: raw.bio ?? raw.description ?? "",
-    category: normalizeCategory(raw.category),
-    experienceYears: raw.experience_years ?? 0,
+    category,
+    experienceYears: experience,
     phone: raw.phone ?? "",
     email: raw.email ?? "",
-    status: raw.is_active === false ? "blocked" : "active",
+    status: raw.is_active === false || raw.is_blocked === true ? "blocked" : "active",
     source: "backend",
     createdAt: new Date().toISOString(),
     services: (raw.services ?? []).map((service, index) => ({
       id: String(service.id ?? index),
       name: service.name ?? "Xizmat",
       price: toNumber(service.price, 0),
-      durationMinutes: service.duration ?? 30,
+      durationMinutes: service.duration_minutes ?? service.duration ?? 30,
     })),
   };
 }
 
-/** Read-through of `GET /barbers/`; an empty or failing backend simply contributes nothing. */
+/**
+ * Read-through of the open catalog `GET /barbers/` (no auth: it is deliberately
+ * public, which is also why it refuses POST — creating goes through
+ * `/super-admin/barbers/`). An empty or failing backend contributes nothing.
+ */
 export async function fetchBackendBarbers(): Promise<BarberProfile[]> {
-  const result = await request<PaginatedBackend<RawBackendBarber>>("/barbers/");
+  const result = await request<PaginatedBackend<RawBackendBarber>>("/barbers/?page_size=100");
   if (!result.ok || !result.data?.results) return [];
-  return result.data.results
-    .map(mapBackendBarber)
-    // Markers need real coordinates; anything without them can't go on the map.
-    .filter((barber) => barber.coordinates.lat !== 0 && barber.coordinates.lng !== 0);
+  return result.data.results.map(mapBackendBarber);
 }
 
+/* ------------------------------------------------------- super admin API */
+
 /**
- * Tries to register an approved worker upstream. `/barbers/` is GET-only today
- * (405), so this returns false and the caller keeps the profile local — no data
- * is lost, and the same call starts succeeding the day the endpoint accepts POST.
+ * Creating a worker on the backend, from an approved application.
+ *
+ * Two calls: the salon carries the map coordinates, the barber carries the
+ * person. `email` is the important one — it is the Google account the usta will
+ * sign in with, and the backend links the two on their first sign-in. A wrong
+ * email means they get a fresh "client" account instead of their panel.
+ *
+ * `salon` is optional on the backend (an usta may work independently), so a
+ * failed salon creation doesn't block the barber.
  */
-export async function pushBarberToBackend(application: BarberApplication): Promise<boolean> {
-  const { token, cookie } = await fetchCsrf();
+export async function createBackendBarberFromApplication(
+  application: BarberApplication,
+  cookie: string | null
+): Promise<ProxyResult<{ id?: string | number }>> {
+  let salonId: string | number | null = null;
 
-  const result = await request("/barbers/", {
-    method: "POST",
-    headers: token ? { "X-CSRFToken": token } : undefined,
-    cookie: cookie ?? undefined,
-    body: JSON.stringify({
-      name: `${application.firstName} ${application.lastName}`.trim(),
-      salon_name: application.workplace,
-      specialty: application.profession,
-      category: application.category,
-      phone: application.phone,
-      email: application.email,
-      address: application.address,
-      residence: application.residence,
-      latitude: application.coordinates.lat,
-      longitude: application.coordinates.lng,
-      experience_years: application.experienceYears,
-      bio: application.bio,
-      services: application.services.map((service) => ({
-        name: service.name,
-        price: service.price,
-        duration: service.durationMinutes,
-      })),
-    }),
-  });
+  if (application.workplace) {
+    const salon = await proxyAsUser<{ id?: string | number }>(
+      "/super-admin/salons/",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          name: application.workplace,
+          location_lat: application.coordinates.lat,
+          location_lng: application.coordinates.lng,
+          address: application.address,
+          city: "Toshkent",
+          specialty: SPECIALTY_CODE[application.category],
+          phone: application.phone,
+          description: application.bio,
+        }),
+      },
+      cookie
+    );
+    if (salon.ok && salon.data?.id) salonId = salon.data.id;
+  }
 
-  return result.ok;
+  return proxyAsUser<{ id?: string | number }>(
+    "/super-admin/barbers/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        email: application.email,
+        full_name: `${application.firstName} ${application.lastName}`.trim(),
+        // The backend's examples use the national number without the country code.
+        phone: application.phone.replace(/\D/g, "").slice(-9),
+        ...(salonId ? { salon: salonId } : {}),
+        specialty: SPECIALTY_CODE[application.category],
+        bio: application.bio || application.profession,
+        experience_years: application.experienceYears,
+        services: application.services.map((service) => ({
+          name: service.name,
+          price: service.price,
+          duration_minutes: service.durationMinutes,
+        })),
+        default_slot_minutes: 30,
+      }),
+    },
+    cookie
+  );
+}
+
+/** `GET /super-admin/barbers/` — the full list, blocked ones included. */
+export async function fetchAdminBarbers(cookie: string | null): Promise<ProxyResult<BarberProfile[]>> {
+  const result = await proxyAsUser<PaginatedBackend<RawBackendBarber> | RawBackendBarber[]>(
+    "/super-admin/barbers/?page_size=100",
+    {},
+    cookie
+  );
+
+  const rows = Array.isArray(result.data) ? result.data : (result.data?.results ?? []);
+  return { ...result, data: result.ok ? rows.map(mapBackendBarber) : null };
+}
+
+export async function setBackendBarberStatus(
+  id: string,
+  status: "active" | "blocked",
+  cookie: string | null
+): Promise<ProxyResult<unknown>> {
+  const action = status === "blocked" ? "block" : "activate";
+  return proxyAsUser(`/super-admin/barbers/${id}/${action}/`, { method: "POST", body: "{}" }, cookie);
+}
+
+export async function deleteBackendBarber(id: string, cookie: string | null): Promise<ProxyResult<unknown>> {
+  return proxyAsUser(`/super-admin/barbers/${id}/`, { method: "DELETE" }, cookie);
+}
+
+export interface RawBackendUser {
+  id: number | string;
+  email?: string;
+  full_name?: string | null;
+  name?: string | null;
+  phone?: string | null;
+  role?: string | null;
+  is_blocked?: boolean;
+  is_active?: boolean;
+  avatar?: string | null;
+  photo?: string | null;
+  date_joined?: string;
+  created_at?: string;
+}
+
+const ROLE_VALUES: UserRole[] = ["client", "barber", "superadmin"];
+
+/** The backend is the authority on roles; this maps its value onto ours. */
+export function normalizeUserRole(raw?: string | null): UserRole {
+  const value = raw?.toLowerCase().replace(/[\s_-]/g, "") ?? "";
+  if (value === "superadmin" || value === "admin") return "superadmin";
+  return (ROLE_VALUES as string[]).includes(value) ? (value as UserRole) : "client";
+}
+
+export function mapBackendUser(raw: RawBackendUser): AppUser {
+  return {
+    id: String(raw.id),
+    googleSub: null,
+    email: raw.email ?? "",
+    name: raw.full_name ?? raw.name ?? raw.email ?? "Foydalanuvchi",
+    picture: raw.avatar ?? raw.photo ?? null,
+    role: normalizeUserRole(raw.role),
+    status: raw.is_blocked === true || raw.is_active === false ? "blocked" : "active",
+    createdAt: raw.date_joined ?? raw.created_at ?? new Date().toISOString(),
+    syncedWithBackend: true,
+  };
+}
+
+/** `GET /super-admin/users/` — accounts created by Google sign-in. */
+export async function fetchAdminUsers(
+  cookie: string | null,
+  search?: string
+): Promise<ProxyResult<AppUser[]>> {
+  const query = search ? `&search=${encodeURIComponent(search)}` : "";
+  const result = await proxyAsUser<PaginatedBackend<RawBackendUser> | RawBackendUser[]>(
+    `/super-admin/users/?page_size=100${query}`,
+    {},
+    cookie
+  );
+
+  const rows = Array.isArray(result.data) ? result.data : (result.data?.results ?? []);
+  return { ...result, data: result.ok ? rows.map(mapBackendUser) : null };
+}
+
+export async function setBackendUserStatus(
+  id: string,
+  status: "active" | "blocked",
+  cookie: string | null
+): Promise<ProxyResult<unknown>> {
+  const action = status === "blocked" ? "block" : "unblock";
+  return proxyAsUser(`/super-admin/users/${id}/${action}/`, { method: "POST", body: "{}" }, cookie);
+}
+
+export async function setBackendUserRole(
+  id: string,
+  role: "client" | "barber" | "superadmin",
+  cookie: string | null
+): Promise<ProxyResult<unknown>> {
+  return proxyAsUser(
+    `/super-admin/users/${id}/set-role/`,
+    { method: "POST", body: JSON.stringify({ role }) },
+    cookie
+  );
+}
+
+export interface BackendStats {
+  [key: string]: unknown;
+}
+
+/** `GET /super-admin/stats/?period=...` — platform totals for the dashboard. */
+export async function fetchAdminStats(
+  cookie: string | null,
+  period: "day" | "week" | "month" | "year" | "all" = "all"
+): Promise<ProxyResult<BackendStats>> {
+  return proxyAsUser<BackendStats>(`/super-admin/stats/?period=${period}`, {}, cookie);
 }

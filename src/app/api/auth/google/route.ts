@@ -1,12 +1,16 @@
 import { cookies } from "next/headers";
-import { loginWithBackendGoogle, verifyGoogleIdToken } from "@/lib/server/backend";
+import {
+  loginWithBackendGoogle,
+  normalizeUserRole,
+  verifyGoogleIdToken,
+} from "@/lib/server/backend";
 import {
   BACKEND_COOKIE,
   SESSION_COOKIE,
   sessionCookieOptions,
   toSessionUser,
 } from "@/lib/server/session";
-import { createSession, upsertGoogleUser } from "@/lib/server/store";
+import { createSession, updateUser, upsertGoogleUser } from "@/lib/server/store";
 
 export const runtime = "nodejs";
 
@@ -42,7 +46,14 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const backend = await loginWithBackendGoogle(credential);
-  const user = await upsertGoogleUser(profile, backend.ok);
+  let user = await upsertGoogleUser(profile, backend.ok);
+
+  // Whatever role the backend reports wins over the local bootstrap rule.
+  const backendRole = backend.user?.role ? normalizeUserRole(backend.user.role) : null;
+  if (backendRole && backendRole !== user.role) {
+    user = (await updateUser(user.id, { role: backendRole })) ?? user;
+  }
+
   const token = await createSession(user.id);
 
   const cookieStore = await cookies();

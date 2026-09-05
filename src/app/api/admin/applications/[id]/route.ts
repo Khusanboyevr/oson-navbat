@@ -1,10 +1,12 @@
 import { promoteApplicationToBarber } from "@/lib/server/barbers-service";
-import { forbidden, requireSuperAdmin } from "@/lib/server/session";
+import { createBackendBarberFromApplication } from "@/lib/server/backend";
+import { forbidden, getBackendCookie, requireSuperAdmin } from "@/lib/server/session";
 import {
   deleteApplication,
   findApplicationById,
   findUserByEmail,
   setApplicationStatus,
+  updateApplication,
   updateUser,
 } from "@/lib/server/store";
 
@@ -17,9 +19,10 @@ interface RouteContext {
 /**
  * Approve or reject one application.
  *
- * Approving is what puts the worker live: their profile is built from the data
- * they submitted and their marker joins the map, and the matching Google account
- * (if any) is switched to the `barber` role so `/admin` opens for them.
+ * Approving is what puts the worker live. It creates them on the backend
+ * (`POST /super-admin/salons/` for the map pin, then `POST /super-admin/barbers/`
+ * with the Google email that will be their login) and keeps a local copy as a
+ * fallback, so an approval is never lost if the backend call fails.
  */
 export async function PATCH(request: Request, context: RouteContext): Promise<Response> {
   if (!(await requireSuperAdmin())) return forbidden();
@@ -45,14 +48,26 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     return Response.json({ status: "error", message: "Ariza topilmadi" }, { status: 404 });
   }
 
-  if (status === "approved") {
-    const barber = await promoteApplicationToBarber(updated);
-    const user = await findUserByEmail(updated.email);
-    if (user && user.role !== "superadmin") await updateUser(user.id, { role: "barber" });
-    return Response.json({ status: "ok", data: { application: updated, barber } });
+  if (status !== "approved") {
+    return Response.json({ status: "ok", data: { application: updated, barber: null } });
   }
 
-  return Response.json({ status: "ok", data: { application: updated, barber: null } });
+  const backend = await createBackendBarberFromApplication(updated, await getBackendCookie());
+  if (backend.ok) await updateApplication(id, { syncedWithBackend: true });
+
+  const barber = await promoteApplicationToBarber(updated);
+  const user = await findUserByEmail(updated.email);
+  if (user && user.role !== "superadmin") await updateUser(user.id, { role: "barber" });
+
+  return Response.json({
+    status: "ok",
+    data: {
+      application: { ...updated, syncedWithBackend: backend.ok },
+      barber,
+      backendSynced: backend.ok,
+      backendError: backend.ok ? null : backend.error,
+    },
+  });
 }
 
 export async function DELETE(_request: Request, context: RouteContext): Promise<Response> {

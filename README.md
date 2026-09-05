@@ -33,10 +33,10 @@ The application lands in the super admin's review queue. **On approval the publi
 - Accept / cancel / complete actions on each booking
 
 ### For platform admins (`/super-admin`)
-- Live KPIs: registered accounts, active ustas, pending applications, completed-booking revenue
-- **Ustalar arizalari** (`/super-admin/applications`) — every worker application with all submitted details; approve (creates the profile + map marker), reject, or delete
-- **Ustalar ro'yxati** — add a worker by hand (same form, live immediately), block/unblock, delete
-- **Foydalanuvchilar** (`/super-admin/users`) — everyone who signed in with Google; search, block/unblock, delete
+- Live KPIs: registered accounts, active ustas, pending applications — plus whatever numeric totals `GET /super-admin/stats/` returns, rendered generically so a change in its shape can't break the page
+- **Ustalar arizalari** (`/super-admin/applications`) — every worker application with all submitted details; approving creates the salon and the barber **on the backend** (`POST /super-admin/salons/` + `/super-admin/barbers/`), reject or delete otherwise
+- **Ustalar ro'yxati** — read from `GET /super-admin/barbers/`; add by hand (same form), block/activate, delete
+- **Foydalanuvchilar** (`/super-admin/users`) — read from `GET /super-admin/users/`; search, block/unblock and change role. There is no delete: the backend creates accounts through Google sign-in and blocks them instead
 
 ## 🛠 Tech Stack
 
@@ -128,10 +128,10 @@ Roles: `client` → `/`, `barber` → `/admin`, `superadmin` → `/super-admin`.
 
 ## 🗄 Data & API routes
 
-The Django backend can't yet store users, applications, or barbers (see below), so this app runs its own thin backend-for-frontend:
+Users, barbers and salons live on the backend. This app keeps a thin server layer in front of it, for three reasons: the browser has no Django session (sign-in is server-side), the backend's CORS allowlist excludes localhost, and two things have no home upstream — the worker application queue and this app's own sessions.
 
-- **`src/lib/server/store.ts`** — persistence (users, sessions, worker applications, barber profiles) in a JSON file under `DATA_DIR`, written atomically and re-read whenever the file changes on disk. It is deliberately a single module with a small API, so swapping it for SQL/Supabase — or deleting it once the Django endpoints exist — touches nothing else. On a serverless host `DATA_DIR` must point at a real volume.
-- **`src/lib/server/backend.ts`** — the bridge to `api.qulaynavbat.uz`. Every write tries the backend first and reports whether it took; reads merge backend rows with local ones. Calling it from the server also sidesteps the backend's CORS allowlist, so `localhost` development works.
+- **`src/lib/server/store.ts`** — the worker application queue, this app's sessions, and a fallback mirror of users/barbers used only while the backend is unreachable. A JSON file under `DATA_DIR`, written atomically and re-read whenever it changes on disk. On a serverless host point `DATA_DIR` at a real volume if the pending queue must survive a redeploy.
+- **`src/lib/server/backend.ts`** — the bridge to `api.qulaynavbat.uz`: auth, the open catalog, and every `/super-admin/*` call. Writes go straight to the backend and report whether they took; reads merge backend rows with any local fallback.
 - **`src/lib/server/session.ts`** — cookie session + `requireSuperAdmin()` guard.
 - **`src/lib/server/validation.ts`** — one validator shared by public registration and admin-side creation.
 
@@ -145,10 +145,10 @@ The Django backend can't yet store users, applications, or barbers (see below), 
 | `/api/barbers/apply` | `POST` | — | Worker application (status `pending`) |
 | `/api/admin/applications` | `GET` | super admin | Review queue |
 | `/api/admin/applications/[id]` | `PATCH`, `DELETE` | super admin | Approve/reject; delete |
-| `/api/admin/barbers` | `GET`, `POST` | super admin | List all; add manually |
-| `/api/admin/barbers/[id]` | `PATCH`, `DELETE` | super admin | Block/unblock; delete (backend-owned rows are read-only) |
+| `/api/admin/barbers` | `GET`, `POST` | super admin | `GET`/`POST /super-admin/barbers/` |
+| `/api/admin/barbers/[id]` | `PATCH`, `DELETE` | super admin | `/block/`, `/activate/`, delete |
 | `/api/admin/users` | `GET` | super admin | Everyone who signed in |
-| `/api/admin/users/[id]` | `PATCH`, `DELETE` | super admin | Block/unblock, change role; delete |
+| `/api/admin/users/[id]` | `PATCH` | super admin | Block/unblock (`/block/`, `/unblock/`), change role (`/set-role/`) |
 | `/api/notifications` | `GET` | signed in | History (`?is_read=false`) |
 | `/api/notifications/unread-count` | `GET` | signed in | Bell badge |
 | `/api/notifications/read` | `PUT` | signed in | Empty body = all, `{ ids }` = some |
@@ -165,7 +165,26 @@ Bookings are the one flow still running on mock data (`src/lib/bookings.ts`) —
 - **`src/lib/server/backend.ts`** — the single place that talks to it: CSRF (`GET /auth/csrf/` → `X-CSRFToken`), cookie relay, refresh-on-401, and the `/auth/methods/` cache.
 - **`src/lib/server/notifications-proxy.ts`** — relays the notification endpoints as the signed-in user, behind this app's `/api/notifications/*` routes.
 
-**Verified live:** `/auth/methods/`, `/auth/csrf/`, `/auth/me/`, `/auth/google/` (POST `{ id_token }` → `{ user, is_new_user }`), `/auth/logout/`, `/auth/refresh/`, `/notifications/*`, and read-only `/salons/`, `/barbers/`, `/reviews/` (both barber lists currently empty). `/auth/otp/request/` and `/auth/otp/verify/` are gone (404) — SMS login no longer exists anywhere.
+**Auth:** `/auth/methods/`, `/auth/csrf/`, `/auth/me/`, `/auth/google/` (POST `{ id_token }` → `{ user, is_new_user }`), `/auth/logout/`, `/auth/refresh/`. `/auth/otp/*` is gone (404) — SMS login no longer exists anywhere.
+
+**Open catalog (no auth, read-only by design):** `/salons/`, `/barbers/`, `/reviews/`. They answer `405` to `POST` on purpose — an open endpoint that accepted writes would let anyone publish a fake salon. Creating and editing happens under `/super-admin/`.
+
+**Super admin** (requires the `superadmin` role; everything else gets `403`):
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` `POST` | `/super-admin/salons/` | Salons / create |
+| `GET` `PUT` `PATCH` `DELETE` | `/super-admin/salons/<id>/` | One salon |
+| `GET` `POST` | `/super-admin/barbers/` | Barbers / create |
+| `GET` `PUT` `PATCH` `DELETE` | `/super-admin/barbers/<id>/` | One barber |
+| `POST` | `/super-admin/barbers/<id>/block/` `/activate/` | Block / activate |
+| `GET` | `/super-admin/users/` `/<id>/` | Accounts |
+| `POST` | `/super-admin/users/<id>/block/` `/unblock/` `/set-role/` | Account actions |
+| `GET` | `/super-admin/stats/?period=day\|week\|month\|year\|all` | Platform totals |
+
+All of them paginate and accept `?search=` / `?ordering=`.
+
+**Creating an usta** (`POST /super-admin/barbers/`) takes `email`, `full_name`, `phone`, `salon`, `specialty`, `bio`, `experience_years`, `services[]`, `default_slot_minutes`. **`email` is the important field**: it is the Google account the usta signs in with, and the backend links the two on their first sign-in. A wrong email means they get a fresh "client" account and can't reach their panel. `salon` is optional (an usta may work independently) and carries the map coordinates, which is why approval creates the salon first.
 
 ## 🔔 Notifications (Web Push)
 
@@ -179,10 +198,9 @@ Native **Web Push**, backed by the Django backend ([`pywebpush`](https://pypi.or
 
 ## 🛠 What's next for the backend
 
-1. **Add a worker/barber write endpoint** — `POST /barbers/` (or `/salons/`) is `405` today. The frontend already posts the full payload on every approval (`pushBarberToBackend` in `src/lib/server/backend.ts`: name, salon, specialty, category, phone, email, address, residence, latitude/longitude, experience, bio, services) and records whether it succeeded, so it starts syncing the moment the endpoint accepts it.
-2. **Add a users list endpoint** (`GET /auth/users/` or similar, staff-only) so the super admin panel can read accounts from the backend instead of the local store.
-3. **Optionally an applications endpoint**, if worker applications should live server-side rather than in this app's store.
-4. Share exact request/response shapes (OpenAPI/Swagger) for `/bookings/`, `/reviews/`, `/salons/` — bookings are the last flow still on mock data.
+1. Share exact request/response shapes for `/bookings/` (and `/reviews/`) — bookings are the last flow still on mock data.
+2. Confirm the `specialty` codes accepted by `/super-admin/barbers/` and `/super-admin/salons/`. The frontend sends `men` / `women` / `kids` (mapped from erkaklar / ayollar / bolalar) and `unisex` was the example for salons; if the vocabulary differs, it is one constant to change (`SPECIALTY_CODE` in `src/lib/server/backend.ts`).
+3. **Optionally an applications endpoint.** Worker self-registration has no home on the backend (barbers are created by a super admin), so `/register/barber` submissions queue in this app's store until approved. If that queue should live server-side, it needs an endpoint.
 
 ## 🔍 SEO & PWA
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, CheckCircle2, Loader2, Search, Trash2 } from "lucide-react";
+import { Ban, CheckCircle2, Loader2, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "@/components/providers/SessionProvider";
 import type { AppUser, UserRole } from "@/lib/types";
@@ -12,8 +12,9 @@ const ROLE_LABEL: Record<UserRole, string> = {
 };
 
 /**
- * Everyone who registered with Google — this is where "ro'yxatdan o'tganlar super
- * adminga keladi" lands. Name and email come straight from the Google account.
+ * Everyone who registered with Google, read from the backend's
+ * `/super-admin/users/`. Accounts are created by signing in and are blocked
+ * rather than deleted — the backend offers no delete, by design.
  */
 export default function UsersView() {
   const { user: currentUser } = useSession();
@@ -137,9 +138,26 @@ export default function UsersView() {
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-                  <span className="rounded-full border border-white/50 bg-white/40 px-3 py-1 text-xs font-medium text-foreground/70">
-                    {ROLE_LABEL[user.role]}
-                  </span>
+                  <select
+                    value={user.role}
+                    disabled={isBusy || isSelf}
+                    aria-label="Rolni o'zgartirish"
+                    title={isSelf ? "O'z hisobingiz" : "Rolni o'zgartirish"}
+                    onChange={(event) =>
+                      mutate(user.id, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ role: event.target.value }),
+                      })
+                    }
+                    className="rounded-full border border-white/50 bg-white/40 px-3 py-1 text-xs font-medium text-foreground/70 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {(Object.keys(ROLE_LABEL) as UserRole[]).map((role) => (
+                      <option key={role} value={role}>
+                        {ROLE_LABEL[role]}
+                      </option>
+                    ))}
+                  </select>
                   <span
                     className={`rounded-full border px-3 py-1 text-xs font-medium ${
                       isActive
@@ -177,16 +195,6 @@ export default function UsersView() {
                     {isActive ? "Bloklash" : "Faollashtirish"}
                   </button>
 
-                  <button
-                    type="button"
-                    disabled={isBusy || isSelf}
-                    title={isSelf ? "O'z hisobingiz" : undefined}
-                    onClick={() => mutate(user.id, { method: "DELETE" })}
-                    aria-label="Foydalanuvchini o'chirish"
-                    className="btn-premium flex h-8 w-8 items-center justify-center rounded-full bg-danger/10 text-danger transition-all duration-200 hover:bg-danger/20 active:scale-90 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <Trash2 size={13} />
-                  </button>
                 </div>
               </div>
             );

@@ -11,17 +11,17 @@ import type {
 } from "@/lib/types";
 
 /**
- * The app's own persistence layer.
+ * The app's own persistence layer, for the two things the backend has no home for.
  *
- * The Django backend at api.qulaynavbat.uz can't hold this data yet — `/barbers/`
- * and `/salons/` are read-only and there is no user or application endpoint (see
- * README "Backend (Real API)"). So every write lands here, and
- * `src/lib/server/backend.ts` mirrors it upstream whenever the backend is able to
- * accept it. Swap this module for real SQL/Supabase without touching the routes.
+ * - **Worker applications.** Self-registration doesn't exist on the backend: it
+ *   creates barbers only through `/super-admin/barbers/`, so the review queue
+ *   behind `/register/barber` lives here until a super admin approves it.
+ * - **This app's sessions**, plus a mirror of users/barbers used as a fallback
+ *   while the backend is unreachable. The backend is the source of truth for both.
  *
  * Data lives in `DATA_DIR` (default `<project>/.data`). On a serverless host that
- * directory is ephemeral — set `DATA_DIR` to a mounted volume, or move the data to
- * the real backend, before relying on it in production.
+ * directory is ephemeral — set `DATA_DIR` to a mounted volume if you rely on the
+ * application queue surviving a redeploy.
  */
 
 interface StoreShape {
@@ -365,5 +365,18 @@ export async function deleteBarber(id: string): Promise<boolean> {
     const before = data.barbers.length;
     data.barbers = data.barbers.filter((barber) => barber.id !== id);
     return data.barbers.length < before;
+  });
+}
+
+/** Patch an application in place — used to record backend sync state. */
+export async function updateApplication(
+  id: string,
+  patch: Partial<BarberApplication>
+): Promise<BarberApplication | null> {
+  return mutate((data) => {
+    const application = data.applications.find((item) => item.id === id);
+    if (!application) return null;
+    Object.assign(application, patch);
+    return application;
   });
 }
