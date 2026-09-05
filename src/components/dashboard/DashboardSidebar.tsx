@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ClipboardList,
   LayoutDashboard,
+  UserCog,
   Menu,
   Users,
   Wallet,
@@ -40,6 +41,7 @@ const ROLE_CONFIG: Record<"admin" | "superadmin", RoleConfig> = {
     title: "Usta paneli",
     links: [
       { label: "Mening jadvalim", href: "/admin", icon: CalendarDays },
+      { label: "Mening profilim", href: "/admin/profile", icon: UserCog },
       { label: "Mijozlarim", icon: Users },
       { label: "Moliyaviy hisobot", icon: Wallet },
     ],

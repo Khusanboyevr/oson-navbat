@@ -11,7 +11,7 @@ Sign-in is **Google-only** — no phone number, no SMS code (the backend removed
 
 ### For customers
 - **Home** — hero search, category filters, and a toggle between a card grid and a live **map** of every approved worker (Leaflet + OpenStreetMap, no API key needed). The list refreshes on a timer and on tab focus, so newly approved ustas appear without a redeploy
-- **Barber profile** — bio, services, a date/time picker with simulated availability, and a running booking summary (desktop sidebar / mobile sticky bar)
+- **Barber profile** — a full page for the usta: photo over a colour wash drawn from their own accent, rating / category / experience badges, address, phone and directions, then two numbered steps (service, then date and time) beside a running booking summary (desktop sidebar / mobile sticky bar)
 - **Booking confirmation** — a glass modal that confirms straight from the signed-in Google account (no phone, no SMS code), without leaving the page
 - **My Bookings** — active vs. history tabs, status pills, cancel / get-directions actions
 - **Profile** — the signed-in Google account (name, email, avatar), language selector, a native Web Push notification toggle, role shortcuts (usta schedule / super admin panel), support and logout
@@ -31,6 +31,7 @@ The application lands in the super admin's review queue. **On approval the publi
 ### For barbers (`/admin`)
 - Daily schedule with today's clients, pending count, and today's earnings, computed live
 - Accept / cancel / complete actions on each booking
+- **Mening profilim** (`/admin/profile`) — the usta's own profile photo, bio and an unlimited service menu (add, edit, remove). Whatever is saved here is what customers see on the map card and the booking page
 
 ### For platform admins (`/super-admin`)
 - Live KPIs: registered accounts, active ustas, pending applications — plus whatever numeric totals `GET /super-admin/stats/` returns, rendered generically so a change in its shape can't break the page
@@ -154,6 +155,7 @@ Users, barbers and salons live on the backend. This app keeps a thin server laye
 | `/api/notifications/read` | `PUT` | signed in | Empty body = all, `{ ids }` = some |
 | `/api/notifications/vapid-key` | `GET` | — | Web Push public key |
 | `/api/notifications/subscribe` | `POST` | signed in | Registers a `PushSubscription` |
+| `/api/me/barber` | `GET`, `PATCH` | signed-in usta | Own photo, bio and services |
 | `/api/bookings` | `GET`, `POST` | — | Still a stub over mock booking data |
 
 Bookings are the one flow still running on mock data (`src/lib/bookings.ts`) — everything auth-, worker- and map-related is real.
@@ -200,7 +202,8 @@ Native **Web Push**, backed by the Django backend ([`pywebpush`](https://pypi.or
 
 1. Share exact request/response shapes for `/bookings/` (and `/reviews/`) — bookings are the last flow still on mock data.
 2. Confirm the `specialty` codes accepted by `/super-admin/barbers/` and `/super-admin/salons/`. The frontend sends `men` / `women` / `kids` (mapped from erkaklar / ayollar / bolalar) and `unisex` was the example for salons; if the vocabulary differs, it is one constant to change (`SPECIALTY_CODE` in `src/lib/server/backend.ts`).
-3. **Optionally an applications endpoint.** Worker self-registration has no home on the backend (barbers are created by a super admin), so `/register/barber` submissions queue in this app's store until approved. If that queue should live server-side, it needs an endpoint.
+3. **A self-service endpoint for ustas** — something like `GET`/`PATCH /barbers/me/`, so a barber can maintain their own photo, bio and services without super admin rights. Two gaps feed into this: the create payload has no photo field at all, and `/super-admin/*` is (correctly) closed to them. Until then those edits are stored by this app and overlaid onto the public listing, filling only fields the backend leaves empty.
+4. **Optionally an applications endpoint.** Worker self-registration has no home on the backend (barbers are created by a super admin), so `/register/barber` submissions queue in this app's store until approved. If that queue should live server-side, it needs an endpoint.
 
 ## 🔍 SEO & PWA
 

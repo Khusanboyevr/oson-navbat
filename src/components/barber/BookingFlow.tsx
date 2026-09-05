@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import BookingModal from "@/components/barber/BookingModal";
 import BookingSummary from "@/components/barber/BookingSummary";
 import DateTimePicker from "@/components/barber/DateTimePicker";
@@ -32,27 +32,26 @@ export default function BookingFlow({ barber }: BookingFlowProps) {
   return (
     <div className="grid gap-8 pb-28 lg:grid-cols-[1fr_360px] lg:pb-0">
       <div className="flex flex-col gap-8">
-        <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-foreground">Xizmatni tanlang</h2>
+        <Step index={1} title="Xizmatni tanlang" done={Boolean(selectedService)}>
           <ServiceList
             services={barber.services}
             selectedServiceId={selectedServiceId}
             onSelect={setSelectedServiceId}
           />
-        </section>
+        </Step>
 
-        <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-foreground">Sana va vaqtni tanlang</h2>
+        <Step index={2} title="Sana va vaqtni tanlang" done={Boolean(selectedTime)}>
           <DateTimePicker
             selectedDateIso={selectedDateIso}
             selectedTime={selectedTime}
             onSelectDate={handleSelectDate}
             onSelectTime={setSelectedTime}
           />
-        </section>
+        </Step>
       </div>
 
       <BookingSummary
+        barber={barber}
         service={selectedService}
         dateIso={selectedDateIso}
         time={selectedTime}
@@ -72,5 +71,34 @@ export default function BookingFlow({ barber }: BookingFlowProps) {
         />
       )}
     </div>
+  );
+}
+
+/** A numbered step, ticked once its choice has been made. */
+function Step({
+  index,
+  title,
+  done,
+  children,
+}: {
+  index: number;
+  title: string;
+  done: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors duration-200 ${
+            done ? "bg-primary text-primary-foreground" : "bg-white/60 text-foreground/60"
+          }`}
+        >
+          {index}
+        </span>
+        <h2 className="text-lg font-bold text-foreground">{title}</h2>
+      </div>
+      {children}
+    </section>
   );
 }

@@ -1,29 +1,59 @@
+import { CalendarDays, Clock, Scissors } from "lucide-react";
 import { formatDateLabel } from "@/lib/dates";
 import { formatNumber } from "@/lib/format";
-import type { Service } from "@/lib/barbers";
+import type { BarberProfile } from "@/lib/types";
 
 interface BookingSummaryProps {
-  service: Service | null;
+  barber: BarberProfile;
+  service: BarberProfile["services"][number] | null;
   dateIso: string;
   time: string | null;
   onContinue: () => void;
 }
 
-export default function BookingSummary({ service, dateIso, time, onContinue }: BookingSummaryProps) {
+export default function BookingSummary({
+  barber,
+  service,
+  dateIso,
+  time,
+  onContinue,
+}: BookingSummaryProps) {
   const isComplete = Boolean(service && time);
   const priceLabel = service ? `${formatNumber(service.price)} so'm` : "0 so'm";
   const dateLabel = formatDateLabel(dateIso);
 
+  /** What's still missing, so the button never just sits there disabled without a reason. */
+  const hint = !service ? "Xizmatni tanlang" : !time ? "Sana va vaqtni tanlang" : null;
+
   return (
     <>
       <aside className="hidden lg:block">
-        <div className="sticky top-24 flex flex-col gap-4 rounded-3xl border border-white/30 bg-white/20 p-6 shadow-[0_4px_30px_rgba(0,0,0,0.1)] backdrop-blur-xl">
-          <h3 className="text-lg font-bold text-foreground">Bron tafsilotlari</h3>
+        <div className="sticky top-24 flex flex-col gap-4 rounded-3xl border border-white/30 bg-white/25 p-6 shadow-[0_4px_30px_rgba(0,0,0,0.1)] backdrop-blur-xl">
+          <div className="flex items-center gap-3 border-b border-white/40 pb-4">
+            {barber.photo ? (
+              // eslint-disable-next-line @next/next/no-img-element -- data URL or backend-hosted avatar
+              <img src={barber.photo} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" />
+            ) : (
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white"
+                style={{ backgroundColor: barber.avatarColor }}
+              >
+                {barber.name.charAt(0)}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">{barber.name}</p>
+              <p className="truncate text-xs text-muted-foreground">Bron tafsilotlari</p>
+            </div>
+          </div>
 
           <div className="flex flex-col gap-3 text-sm">
-            <SummaryRow label="Xizmat" value={service?.name ?? "Tanlanmagan"} />
-            <SummaryRow label="Sana" value={time ? dateLabel : "Tanlanmagan"} />
-            <SummaryRow label="Vaqt" value={time ?? "Tanlanmagan"} />
+            <SummaryRow icon={Scissors} label="Xizmat" value={service?.name ?? "Tanlanmagan"} />
+            <SummaryRow icon={CalendarDays} label="Sana" value={time ? dateLabel : "Tanlanmagan"} />
+            <SummaryRow icon={Clock} label="Vaqt" value={time ?? "Tanlanmagan"} />
+            {service && (
+              <SummaryRow icon={Clock} label="Davomiyligi" value={`${service.durationMinutes} daqiqa`} />
+            )}
           </div>
 
           <div className="flex items-center justify-between border-t border-white/40 pt-4">
@@ -39,18 +69,22 @@ export default function BookingSummary({ service, dateIso, time, onContinue }: B
           >
             Davom etish
           </button>
+
+          {hint && <p className="text-center text-xs text-muted-foreground">{hint}</p>}
         </div>
       </aside>
 
       <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/40 bg-white/70 px-4 py-3 backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/40 bg-white/80 px-4 py-3 backdrop-blur-xl lg:hidden"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{service?.name ?? "Xizmatni tanlang"}</p>
+            <p className="truncate text-sm font-semibold text-foreground">
+              {service?.name ?? "Xizmatni tanlang"}
+            </p>
             <p className="truncate text-xs text-muted-foreground">
-              {time ? `${dateLabel}, ${time} • ${priceLabel}` : "Sana va vaqtni tanlang"}
+              {time ? `${dateLabel}, ${time} • ${priceLabel}` : (hint ?? "")}
             </p>
           </div>
           <button
@@ -67,11 +101,22 @@ export default function BookingSummary({ service, dateIso, time, onContinue }: B
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+function SummaryRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Clock;
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-foreground">{value}</span>
+    <div className="flex items-center justify-between gap-3">
+      <span className="flex items-center gap-1.5 text-muted-foreground">
+        <Icon size={14} />
+        {label}
+      </span>
+      <span className="min-w-0 truncate text-right font-medium text-foreground">{value}</span>
     </div>
   );
 }
