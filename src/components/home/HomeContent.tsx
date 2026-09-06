@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import BarberExplorer from "@/components/home/BarberExplorer";
 import Hero from "@/components/home/Hero";
+import InstallAppCard from "@/components/pwa/InstallAppCard";
 import type { BarberProfile } from "@/lib/types";
 
 interface HomeContentProps {
@@ -42,6 +43,8 @@ export default function HomeContent({ initialBarbers }: HomeContentProps) {
 
   return (
     <div className="flex flex-col gap-10 py-8 sm:py-12">
+      {/* Offered here too, since most people never open their profile. */}
+      <InstallAppCard variant="banner" />
       <Hero query={searchQuery} onQueryChange={setSearchQuery} />
       <BarberExplorer barbers={barbers} searchQuery={searchQuery} />
     </div>
