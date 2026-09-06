@@ -70,6 +70,8 @@ export interface BarberApplication extends BarberApplicationInput {
   syncedWithBackend: boolean;
   /** What the backend answered the last time writing this worker failed. */
   backendError?: string | null;
+  /** Why the super admin returned it — shown to the applicant so they can fix it. */
+  reviewNote?: string | null;
 }
 
 /** An approved worker — this is what the map, the home list and /barber/[id] read. */
@@ -103,6 +105,8 @@ export interface SessionUser {
   /** Present when this account also owns an approved barber profile. */
   barberId: string | null;
   applicationStatus: ApplicationStatus | null;
+  /** Why their application was returned, when it was. */
+  applicationNote: string | null;
 }
 
 export type BookingStatusKey = "pending" | "confirmed" | "completed" | "cancelled";

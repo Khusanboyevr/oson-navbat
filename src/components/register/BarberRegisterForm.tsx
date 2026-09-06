@@ -14,7 +14,9 @@ import {
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import { useSession } from "@/components/providers/SessionProvider";
+import { completeGoogleLogin } from "@/lib/google-auth";
 import { fileToAvatarDataUrl } from "@/lib/image";
 import { reverseGeocode } from "@/lib/map";
 import { PHONE_SAMPLE, formatUzPhone, isValidUzPhone } from "@/lib/phone";
@@ -68,8 +70,10 @@ export default function BarberRegisterForm({
   onSuccess,
   embedded = false,
 }: BarberRegisterFormProps = {}) {
-  const { user } = useSession();
+  const { user, isLoading: isSessionLoading, setUser, refresh } = useSession();
   const [step, setStep] = useState(0);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -250,6 +254,66 @@ export default function BarberRegisterForm({
     }
   };
 
+  const handleCredential = async (credential: string) => {
+    setIsSigningIn(true);
+    setSignInError(null);
+    try {
+      const result = await completeGoogleLogin(credential);
+      setUser(result.user);
+      await refresh();
+    } catch (loginError) {
+      setSignInError(loginError instanceof Error ? loginError.message : "Kirishda xatolik yuz berdi");
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  // An ariza has to belong to an account: it is how the usta is recognised when
+  // they sign in later, how their profile is handed to them, and how we can write
+  // back why an application was returned. Signing in first also means the email
+  // can't be mistyped — it comes from Google.
+  if (!embedded && !user) {
+    if (isSessionLoading) {
+      return (
+        <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+          <Loader2 size={16} className="animate-spin" />
+          Yuklanmoqda...
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-foreground sm:text-3xl">
+            Usta bo&apos;lib qo&apos;shiling
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Avval Google hisobingiz bilan kiring — ariza shu hisobga bog&apos;lanadi. Tasdiqlangach
+            xuddi shu hisob bilan kirib o&apos;z panelingizga tushasiz.
+          </p>
+        </div>
+
+        {signInError && (
+          <p className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-2.5 text-center text-xs text-danger">
+            {signInError}
+          </p>
+        )}
+
+        <GoogleSignInButton
+          onCredential={handleCredential}
+          onError={setSignInError}
+          error={signInError}
+          isSubmitting={isSigningIn}
+        />
+
+        <Link href="/" className="text-center text-xs text-muted-foreground underline">
+          Bosh sahifaga qaytish
+        </Link>
+      </div>
+    );
+  }
+
   if (isDone && embedded) {
     return (
       <div className="flex flex-col items-center gap-3 py-6 text-center">
@@ -345,14 +409,20 @@ export default function BarberRegisterForm({
           </Field>
 
           <Field label="Email" error={fieldErrors.email}>
+            {/* The account's own address when there is one: it is the login the
+                approved usta will use, so it must not be retyped or mistyped. */}
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              readOnly={!embedded && Boolean(user)}
               type="email"
               inputMode="email"
-              className={inputClass}
+              className={`${inputClass} ${!embedded && user ? "cursor-not-allowed opacity-70" : ""}`}
               placeholder="aziz@gmail.com"
             />
+            {!embedded && user && (
+              <p className="mt-1 text-[11px] text-muted-foreground">Google hisobingiz emaili.</p>
+            )}
           </Field>
 
           <Field label="Yashash joyingiz" error={fieldErrors.residence}>

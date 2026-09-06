@@ -1,6 +1,15 @@
 "use client";
 
-import { ChevronRight, ClipboardList, LayoutDashboard, LifeBuoy, Loader2, LogOut, Scissors } from "lucide-react";
+import {
+  ChevronRight,
+  ClipboardList,
+  LayoutDashboard,
+  LifeBuoy,
+  Loader2,
+  LogOut,
+  RotateCcw,
+  Scissors,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ProfileHeader from "@/components/profile/ProfileHeader";
@@ -67,6 +76,24 @@ export default function ProfileView() {
           </span>
           <ChevronRight size={16} className="text-muted-foreground" />
         </Link>
+      )}
+
+      {user.applicationStatus === "rejected" && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-4">
+          <p className="flex items-start gap-2 text-sm text-foreground/85">
+            <RotateCcw size={16} className="mt-0.5 shrink-0 text-accent" />
+            <span>
+              <span className="font-semibold">Arizangiz qaytarildi.</span>
+              {user.applicationNote ? ` ${user.applicationNote}` : " Ma'lumotlaringizni tekshirib, qayta yuboring."}
+            </span>
+          </p>
+          <Link
+            href="/register/barber"
+            className="btn-premium flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:-translate-y-[1px] hover:bg-primary-hover active:scale-95"
+          >
+            Qayta ariza yuborish
+          </Link>
+        </div>
       )}
 
       {user.applicationStatus === "pending" && (

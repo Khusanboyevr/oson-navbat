@@ -103,6 +103,7 @@ export async function toSessionUser(user: SessionAccount): Promise<SessionUser> 
     role: user.role === "client" && backendBarberId ? "barber" : user.role,
     barberId: barber?.id ?? backendBarberId,
     applicationStatus: application?.status ?? null,
+    applicationNote: application?.reviewNote ?? null,
   };
 }
 

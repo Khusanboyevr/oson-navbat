@@ -33,6 +33,8 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     status?: string;
     phone?: string;
     email?: string;
+    /** Why it is being returned, written by the super admin. */
+    note?: string;
   };
   const status = body.status;
 
@@ -69,7 +71,13 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     corrections.email = email;
   }
 
-  if (Object.keys(corrections).length > 0) await updateApplication(id, corrections);
+  // Returning an ariza carries the reason back to the applicant, who sees it on
+  // their profile and can send a corrected one; approving clears it.
+  const note = typeof body.note === "string" ? body.note.trim().slice(0, 400) : "";
+  await updateApplication(id, {
+    ...corrections,
+    reviewNote: status === "rejected" ? note || null : null,
+  });
 
   const updated = await setApplicationStatus(id, status);
   if (!updated) {

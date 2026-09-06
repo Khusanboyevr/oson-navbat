@@ -21,9 +21,18 @@ import type {
  * Sessions are not here: they are signed cookies (`session-token.ts`), so nothing
  * about staying signed in depends on this file surviving.
  *
- * Data lives in `DATA_DIR` (default `<project>/.data`). On a serverless host that
- * directory is ephemeral — set `DATA_DIR` to a mounted volume if you rely on the
- * application queue surviving a redeploy.
+ * Where it lives, in order of preference:
+ *
+ * 1. A Redis/KV store over its REST API, when `KV_REST_API_URL` + `KV_REST_API_TOKEN`
+ *    (Vercel KV) or `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` are set.
+ *    This is the only durable option on a serverless host: every instance reads and
+ *    writes the same document, so an application submitted on one is visible to the
+ *    super admin on another.
+ * 2. `DATA_DIR` (default `<project>/.data`), which is right for a normal server.
+ *
+ * With neither, a serverless deployment falls back to `/tmp`, where the queue lives
+ * only as long as the instance that received it — `isStoreDurable()` reports that,
+ * and the super admin panel says so out loud.
  */
 
 interface StoreShape {
@@ -47,6 +56,46 @@ const DATA_DIR =
     : path.join(process.cwd(), ".data"));
 
 const DATA_FILE = path.join(DATA_DIR, "qulaynavbat.json");
+
+/* --------------------------------------------------------------- KV store */
+
+const KV_URL = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL ?? "";
+const KV_TOKEN = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN ?? "";
+const KV_KEY = process.env.KV_STORE_KEY ?? "qulaynavbat:store";
+const usingKv = Boolean(KV_URL && KV_TOKEN);
+
+/** How long a KV read is reused before asking again. */
+const KV_CACHE_MS = 2000;
+let kvCachedAt = 0;
+
+/**
+ * True when the store survives this instance — a KV store, or a real filesystem
+ * that isn't the serverless `/tmp`. The application queue is only trustworthy then.
+ */
+export function isStoreDurable(): boolean {
+  if (usingKv) return true;
+  return !DATA_DIR.startsWith("/tmp");
+}
+
+async function kvRead(): Promise<string | null> {
+  const response = await fetch(`${KV_URL}/get/${encodeURIComponent(KV_KEY)}`, {
+    headers: { Authorization: `Bearer ${KV_TOKEN}` },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`KV get ${response.status}`);
+  const payload = (await response.json()) as { result?: string | null };
+  return payload.result ?? null;
+}
+
+async function kvWrite(value: string): Promise<void> {
+  const response = await fetch(`${KV_URL}/set/${encodeURIComponent(KV_KEY)}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${KV_TOKEN}` },
+    body: value,
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`KV set ${response.status}`);
+}
 
 /** Logged once, so a read-only filesystem doesn't fill the logs on every write. */
 let warnedAboutWrites = false;
@@ -91,7 +140,34 @@ let writeQueue: Promise<void> = Promise.resolve();
  * each may hold its own copy of this module), and a deployment can run more than
  * one instance. Comparing mtime on every read keeps them all honest.
  */
+function normalize(parsed: Partial<StoreShape>): StoreShape {
+  return {
+    users: parsed.users ?? [],
+    applications: parsed.applications ?? [],
+    barbers: withoutDemoBarbers(parsed.barbers ?? []),
+    superAdminInvites: parsed.superAdminInvites ?? [],
+  };
+}
+
 async function load(): Promise<StoreShape> {
+  if (usingKv) {
+    if (cache && Date.now() - kvCachedAt < KV_CACHE_MS) return cache;
+    try {
+      const raw = await kvRead();
+      cache = raw ? normalize(JSON.parse(raw) as Partial<StoreShape>) : seed();
+      kvCachedAt = Date.now();
+    } catch (error) {
+      // Unreachable KV: keep serving whatever this instance already has rather
+      // than wiping it, and try again on the next read.
+      if (!warnedAboutWrites) {
+        warnedAboutWrites = true;
+        console.warn("[store] KV o'qib bo'lmadi:", error instanceof Error ? error.message : error);
+      }
+      cache = cache ?? seed();
+    }
+    return cache;
+  }
+
   let mtimeMs = 0;
   try {
     mtimeMs = (await stat(DATA_FILE)).mtimeMs;
@@ -126,6 +202,16 @@ async function persist(data: StoreShape): Promise<void> {
   writeQueue = writeQueue.then(async () => {
     cache = data;
 
+    if (usingKv) {
+      try {
+        await kvWrite(JSON.stringify(data));
+        kvCachedAt = Date.now();
+      } catch (error) {
+        console.warn("[store] KV ga yozib bo'lmadi:", error instanceof Error ? error.message : error);
+      }
+      return;
+    }
+
     try {
       await mkdir(DATA_DIR, { recursive: true });
       const tmp = `${DATA_FILE}.${process.pid}.tmp`;
@@ -147,6 +233,9 @@ async function persist(data: StoreShape): Promise<void> {
 }
 
 async function mutate<T>(fn: (data: StoreShape) => T | Promise<T>): Promise<T> {
+  // Read past the cache before changing anything: another instance may have
+  // written since, and this is a read-modify-write of the whole document.
+  if (usingKv) kvCachedAt = 0;
   const data = await load();
   const result = await fn(data);
   await persist(data);

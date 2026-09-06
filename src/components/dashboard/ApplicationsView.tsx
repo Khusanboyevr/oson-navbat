@@ -45,16 +45,26 @@ export default function ApplicationsView() {
   const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
   /** Phone/email the super admin retyped before sending a rejected sync again. */
   const [fixes, setFixes] = useState<Record<string, { phone: string; email: string }>>({});
+  /** False when the queue lives in storage that doesn't outlive one instance. */
+  const [isDurable, setIsDurable] = useState(true);
+  /** The application being returned, and the reason typed for its applicant. */
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState("");
 
   const load = useCallback(async () => {
     try {
       const response = await fetch("/api/admin/applications", { cache: "no-store" });
-      const payload = (await response.json()) as { data?: BarberApplication[]; message?: string };
+      const payload = (await response.json()) as {
+        data?: BarberApplication[];
+        message?: string;
+        durable?: boolean;
+      };
       if (!response.ok) {
         setError(payload.message ?? "Arizalarni yuklab bo'lmadi");
         return;
       }
       setApplications(payload.data ?? []);
+      setIsDurable(payload.durable !== false);
       setError(null);
     } catch {
       setError("Tarmoq xatosi");
@@ -69,13 +79,13 @@ export default function ApplicationsView() {
     void load();
   }, [load]);
 
-  const review = async (id: string, status: "approved" | "rejected") => {
+  const review = async (id: string, status: "approved" | "rejected", note?: string) => {
     setBusyId(id);
     try {
       const response = await fetch(`/api/admin/applications/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, ...fixes[id] }),
+        body: JSON.stringify({ status, ...fixes[id], note }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
         message?: string;
@@ -97,6 +107,8 @@ export default function ApplicationsView() {
         return next;
       });
 
+      setRejectingId(null);
+      setRejectNote("");
       await load();
     } finally {
       setBusyId(null);
@@ -129,6 +141,18 @@ export default function ApplicationsView() {
             : "Yangi ariza yo'q."}
         </p>
       </div>
+
+      {!isDurable && (
+        <div className="flex flex-col gap-1 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-foreground/80">
+          <span className="font-semibold text-accent">Arizalar saqlanmayapti.</span>
+          <span className="text-xs">
+            Server arizalarni faqat vaqtinchalik xotirada tutyapti, shuning uchun yangi ariza bir necha
+            daqiqadan so&apos;ng yo&apos;qolishi mumkin. Vercel&apos;da <span className="font-mono">Storage</span> bo&apos;limidan
+            KV (Redis) yaratib loyihaga ulang — <span className="font-mono">KV_REST_API_URL</span> va{" "}
+            <span className="font-mono">KV_REST_API_TOKEN</span> paydo bo&apos;lgach arizalar doimiy saqlanadi.
+          </span>
+        </div>
+      )}
 
       {error && (
         <p className="rounded-2xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>
@@ -239,6 +263,13 @@ export default function ApplicationsView() {
                       </div>
                     )}
 
+                    {application.status === "rejected" && application.reviewNote && (
+                      <p className="sm:col-span-2">
+                        <span className="font-medium text-foreground">Qaytarish sababi:</span>{" "}
+                        {application.reviewNote}
+                      </p>
+                    )}
+
                     {!application.syncedWithBackend && (
                       <p className="sm:col-span-2 text-[11px] text-muted-foreground">
                         Backendga hali yozilmagan.
@@ -311,6 +342,43 @@ export default function ApplicationsView() {
                   </div>
                 )}
 
+                {rejectingId === application.id && (
+                  <div className="flex flex-col gap-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-3">
+                    <label className="text-xs font-semibold text-foreground">
+                      Nima muammo? Usta buni o&apos;z profilida ko&apos;radi.
+                    </label>
+                    <textarea
+                      value={rejectNote}
+                      onChange={(event) => setRejectNote(event.target.value)}
+                      rows={2}
+                      maxLength={400}
+                      placeholder="Masalan: telefon raqamingiz noto'g'ri, +998 90 123 45 67 shaklida qayta yuboring."
+                      className="rounded-xl border border-white/60 bg-white/70 px-3 py-2 text-xs text-foreground outline-none transition-colors focus:border-primary/50"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={isBusy || rejectNote.trim().length < 3}
+                        onClick={() => review(application.id, "rejected", rejectNote)}
+                        className="btn-premium flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition-all duration-200 hover:-translate-y-[1px] active:scale-95 disabled:opacity-40"
+                      >
+                        {isBusy ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
+                        Sabab bilan qaytarish
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRejectingId(null);
+                          setRejectNote("");
+                        }}
+                        className="rounded-full border border-white/50 bg-white/40 px-4 py-2 text-xs font-medium text-foreground transition-all duration-200 hover:bg-white/60 active:scale-95"
+                      >
+                        Bekor
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap items-center gap-2 border-t border-white/30 pt-3">
                   {(application.status !== "approved" || !application.syncedWithBackend) && (
                     <button
@@ -328,11 +396,14 @@ export default function ApplicationsView() {
                     <button
                       type="button"
                       disabled={isBusy}
-                      onClick={() => review(application.id, "rejected")}
+                      onClick={() => {
+                        setRejectingId(application.id);
+                        setRejectNote(application.reviewNote ?? "");
+                      }}
                       className="btn-premium flex items-center gap-1.5 rounded-full border border-white/50 bg-white/30 px-4 py-2 text-xs font-semibold text-foreground transition-all duration-200 hover:-translate-y-[1px] hover:bg-white/50 active:scale-95 disabled:opacity-50"
                     >
                       <X size={13} />
-                      Rad etish
+                      Qaytarish
                     </button>
                   )}
 
