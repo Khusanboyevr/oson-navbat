@@ -1,3 +1,4 @@
+import { normalizeUzPhone, uzPhoneError } from "@/lib/phone";
 import type { BarberApplicationInput, BarberCategoryKey, BarberServiceInput } from "@/lib/types";
 
 /** Server-side validation for the worker registration form. */
@@ -21,11 +22,6 @@ function number(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
-function normalizePhone(raw: string): string {
-  const digits = raw.replace(/[^\d+]/g, "");
-  return digits.startsWith("+") ? digits : `+${digits.replace(/^998/, "998")}`;
-}
-
 function parseServices(raw: unknown): BarberServiceInput[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -46,7 +42,8 @@ export function validateApplication(body: unknown): ValidationResult {
 
   const firstName = text(input.firstName);
   const lastName = text(input.lastName);
-  const phone = normalizePhone(text(input.phone));
+  const rawPhone = text(input.phone);
+  const phone = normalizeUzPhone(rawPhone);
   const email = text(input.email).toLowerCase();
   const residence = text(input.residence);
   const workplace = text(input.workplace);
@@ -66,7 +63,10 @@ export function validateApplication(body: unknown): ValidationResult {
 
   if (firstName.length < 2) errors.firstName = "Ismni to'liq kiriting";
   if (lastName.length < 2) errors.lastName = "Familiyani to'liq kiriting";
-  if (phone.replace(/\D/g, "").length < 9) errors.phone = "Telefon raqamni to'g'ri kiriting";
+  // Checked the way the backend checks it, so a bad number is caught here rather
+  // than when the super admin approves the application days later.
+  const phoneError = uzPhoneError(rawPhone);
+  if (phoneError) errors.phone = phoneError;
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) errors.email = "Email manzilni to'g'ri kiriting";
   if (residence.length < 3) errors.residence = "Yashash joyingizni kiriting";
   if (workplace.length < 2) errors.workplace = "Ish joyingiz (salon) nomini kiriting";

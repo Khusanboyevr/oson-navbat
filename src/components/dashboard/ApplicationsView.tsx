@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { formatNumber } from "@/lib/format";
+import { PHONE_SAMPLE, formatUzPhone } from "@/lib/phone";
 import type { ApplicationStatus, BarberApplication } from "@/lib/types";
 
 const STATUS_STYLE: Record<ApplicationStatus, { label: string; className: string }> = {
@@ -42,6 +43,8 @@ export default function ApplicationsView() {
   const [error, setError] = useState<string | null>(null);
   /** Per-application backend failures, so one bad sync doesn't hide the others. */
   const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
+  /** Phone/email the super admin retyped before sending a rejected sync again. */
+  const [fixes, setFixes] = useState<Record<string, { phone: string; email: string }>>({});
 
   const load = useCallback(async () => {
     try {
@@ -72,7 +75,7 @@ export default function ApplicationsView() {
       const response = await fetch(`/api/admin/applications/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...fixes[id] }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
         message?: string;
@@ -261,8 +264,50 @@ export default function ApplicationsView() {
                               "super admin"
                             )
                           ? "Backend hisobingizni super admin deb bilmaydi. Backend dasturchisidan hisobingizga superadmin roli berishni so'rang, so'ng \"Qayta yuborish\" ni bosing."
-                          : "Sababni tuzatib, \"Qayta yuborish\" ni bosing."}
+                          : "Telefon yoki emailni tuzatib, \"Qayta yuborish\" ni bosing."}
                     </span>
+
+                    {/* The usta isn't here to retype anything, so the two fields the
+                        backend rejects most often are editable right here. */}
+                    <div className="mt-1 grid gap-2 sm:grid-cols-2">
+                      <label className="flex flex-col gap-1 text-[11px] font-medium text-foreground/70">
+                        Telefon
+                        <input
+                          value={fixes[application.id]?.phone ?? application.phone}
+                          onChange={(event) =>
+                            setFixes((prev) => ({
+                              ...prev,
+                              [application.id]: {
+                                phone: formatUzPhone(event.target.value),
+                                email: prev[application.id]?.email ?? application.email,
+                              },
+                            }))
+                          }
+                          type="tel"
+                          inputMode="tel"
+                          placeholder={PHONE_SAMPLE}
+                          className="rounded-xl border border-white/60 bg-white/70 px-3 py-2 text-xs text-foreground outline-none transition-colors focus:border-primary/50"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1 text-[11px] font-medium text-foreground/70">
+                        Email
+                        <input
+                          value={fixes[application.id]?.email ?? application.email}
+                          onChange={(event) =>
+                            setFixes((prev) => ({
+                              ...prev,
+                              [application.id]: {
+                                phone: prev[application.id]?.phone ?? application.phone,
+                                email: event.target.value,
+                              },
+                            }))
+                          }
+                          type="email"
+                          inputMode="email"
+                          className="rounded-xl border border-white/60 bg-white/70 px-3 py-2 text-xs text-foreground outline-none transition-colors focus:border-primary/50"
+                        />
+                      </label>
+                    </div>
                   </div>
                 )}
 

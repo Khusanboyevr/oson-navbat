@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/components/providers/SessionProvider";
 import { fileToAvatarDataUrl } from "@/lib/image";
 import { reverseGeocode } from "@/lib/map";
+import { PHONE_SAMPLE, formatUzPhone, isValidUzPhone } from "@/lib/phone";
 import type { BarberCategoryKey, Coordinates } from "@/lib/types";
 
 const LocationPickerMap = dynamic(() => import("@/components/map/LocationPickerMap"), {
@@ -184,7 +185,7 @@ export default function BarberRegisterForm({
       return (
         firstName.trim().length > 1 &&
         lastName.trim().length > 1 &&
-        phone.replace(/\D/g, "").length >= 9 &&
+        isValidUzPhone(phone) &&
         /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) &&
         residence.trim().length > 2
       );
@@ -331,13 +332,15 @@ export default function BarberRegisterForm({
           </div>
 
           <Field label="Telefon raqam" error={fieldErrors.phone}>
+            {/* Kept in the shape the backend accepts while it is typed — a wrong
+                number is otherwise only discovered when the super admin approves. */}
             <input
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(formatUzPhone(e.target.value))}
               type="tel"
               inputMode="tel"
               className={inputClass}
-              placeholder="+998 90 123 45 67"
+              placeholder={PHONE_SAMPLE}
             />
           </Field>
 

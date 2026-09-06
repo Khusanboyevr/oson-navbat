@@ -1,3 +1,4 @@
+import { normalizeUzPhone, uzPhoneError } from "@/lib/phone";
 import { promoteApplicationToBarber } from "@/lib/server/barbers-service";
 import { createBackendBarberFromApplication } from "@/lib/server/backend";
 import { forbidden, getBackendCookie, requireSuperAdmin } from "@/lib/server/session";
@@ -28,7 +29,11 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   if (!(await requireSuperAdmin())) return forbidden();
 
   const { id } = await context.params;
-  const body = (await request.json().catch(() => ({}))) as { status?: string };
+  const body = (await request.json().catch(() => ({}))) as {
+    status?: string;
+    phone?: string;
+    email?: string;
+  };
   const status = body.status;
 
   if (status !== "approved" && status !== "rejected") {
@@ -42,6 +47,29 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   if (!application) {
     return Response.json({ status: "error", message: "Ariza topilmadi" }, { status: 404 });
   }
+
+  // The backend refuses a barber whose phone or email it doesn't accept, and the
+  // usta who typed them is long gone — so the super admin can correct the two
+  // fields here and send it again instead of the application being stuck.
+  const corrections: { phone?: string; email?: string } = {};
+
+  if (typeof body.phone === "string" && body.phone.trim().length > 0) {
+    const phoneError = uzPhoneError(body.phone);
+    if (phoneError) {
+      return Response.json({ status: "error", message: phoneError }, { status: 400 });
+    }
+    corrections.phone = normalizeUzPhone(body.phone);
+  }
+
+  if (typeof body.email === "string" && body.email.trim().length > 0) {
+    const email = body.email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return Response.json({ status: "error", message: "Email manzil noto'g'ri" }, { status: 400 });
+    }
+    corrections.email = email;
+  }
+
+  if (Object.keys(corrections).length > 0) await updateApplication(id, corrections);
 
   const updated = await setApplicationStatus(id, status);
   if (!updated) {
