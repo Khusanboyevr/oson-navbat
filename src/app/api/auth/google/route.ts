@@ -8,6 +8,7 @@ import {
 import {
   BACKEND_COOKIE,
   SESSION_COOKIE,
+  findOwnBackendBarberId,
   issueSessionCookieValue,
   sessionCookieOptions,
   toSessionUser,
@@ -84,8 +85,13 @@ export async function POST(request: Request): Promise<Response> {
     if (me.user?.role) backendRole = normalizeUserRole(me.user.role);
   }
 
+  // The usta may exist only on the backend — created there by the super admin, or
+  // outliving this deployment's own copy — so ask it whether this account owns a
+  // profile rather than relying on the local mirror alone.
+  const ownBackendBarberId = await findOwnBackendBarberId(mirroredCookie);
+
   const claims: UserRole[] = [user.role];
-  if (application?.status === "approved" || ownProfile) claims.push("barber");
+  if (application?.status === "approved" || ownProfile || ownBackendBarberId) claims.push("barber");
   // Added by another super admin (or listed in SUPER_ADMIN_EMAILS) before this
   // person had an account to promote.
   if (promisedSuperAdmin) claims.push("superadmin");

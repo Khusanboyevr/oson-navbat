@@ -2,8 +2,10 @@ import { cookies } from "next/headers";
 import { fetchBackendMe } from "@/lib/server/backend";
 import {
   BACKEND_COOKIE,
+  SESSION_COOKIE,
   getBackendCookie,
   getCurrentUser,
+  issueSessionCookieValue,
   sessionCookieOptions,
   toSessionUser,
 } from "@/lib/server/session";
@@ -27,5 +29,18 @@ export async function GET(): Promise<Response> {
     }
   }
 
-  return Response.json({ status: "ok", data: { user: await toSessionUser(user) } });
+  const sessionUser = await toSessionUser(user);
+
+  // The backend just told us this account is an usta. Write that into the session
+  // cookie as well, or the page guards — which read the cookie, not this
+  // response — would keep sending them away from their own panel.
+  if (sessionUser.role !== user.role) {
+    (await cookies()).set(
+      SESSION_COOKIE,
+      issueSessionCookieValue({ ...user, role: sessionUser.role }),
+      sessionCookieOptions
+    );
+  }
+
+  return Response.json({ status: "ok", data: { user: sessionUser } });
 }

@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { fetchOwnBarber } from "@/lib/server/backend";
 import { signSession, verifySession } from "@/lib/server/session-token";
 import {
   findApplicationByEmail,
@@ -68,6 +69,20 @@ export async function getBackendCookie(): Promise<string | null> {
   return (await cookies()).get(BACKEND_COOKIE)?.value ?? null;
 }
 
+/**
+ * Does this account own an usta profile on the backend?
+ *
+ * `GET /barber/me/` answers for the signed-in account itself, which is the only
+ * reliable way to tell: the local mirror knows only the ustas this deployment
+ * created, and on a read-only host it forgets even those, so an usta whose
+ * profile lives on the backend would otherwise sign in looking like a customer.
+ */
+export async function findOwnBackendBarberId(cookie: string | null): Promise<string | null> {
+  if (!cookie) return null;
+  const own = await fetchOwnBarber(cookie);
+  return own.ok && own.data ? own.data.id : null;
+}
+
 /** Adds the barber-side context the UI needs (own profile id, application state). */
 export async function toSessionUser(user: SessionAccount): Promise<SessionUser> {
   const [barber, application] = await Promise.all([
@@ -75,13 +90,18 @@ export async function toSessionUser(user: SessionAccount): Promise<SessionUser> 
     findApplicationByEmail(user.email),
   ]);
 
+  // Only worth asking the backend when the local mirror came up empty and the
+  // account doesn't already carry a role that says otherwise.
+  const backendBarberId =
+    barber || user.role === "superadmin" ? null : await findOwnBackendBarberId(await getBackendCookie());
+
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     picture: user.picture,
-    role: user.role,
-    barberId: barber?.id ?? null,
+    role: user.role === "client" && backendBarberId ? "barber" : user.role,
+    barberId: barber?.id ?? backendBarberId,
     applicationStatus: application?.status ?? null,
   };
 }
