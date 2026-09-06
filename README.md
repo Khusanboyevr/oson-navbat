@@ -38,6 +38,7 @@ The application lands in the super admin's review queue. **On approval the publi
 - **Ustalar arizalari** (`/super-admin/applications`) — every worker application with all submitted details; approving creates the salon and the barber **on the backend** (`POST /super-admin/salons/` + `/super-admin/barbers/`), reject or delete otherwise
 - **Ustalar ro'yxati** — read from `GET /super-admin/barbers/`; add by hand (same form), block/activate, delete
 - **Foydalanuvchilar** (`/super-admin/users`) — read from `GET /super-admin/users/`; search, block/unblock and change role. There is no delete: the backend creates accounts through Google sign-in and blocks them instead
+- **Super adminlar** (`/super-admin/admins`) — add or remove the people who can run the platform. Someone who has already signed in is promoted on the backend (`/super-admin/users/<id>/set-role/`); an email that never has is remembered and granted the role the first time they sign in, since the backend has no account to promote until then
 
 ## 🛠 Tech Stack
 
@@ -153,6 +154,7 @@ Users, barbers and salons live on the backend. This app keeps a thin server laye
 | `/api/admin/barbers/[id]` | `PATCH`, `DELETE` | super admin | `/block/`, `/activate/`, delete |
 | `/api/admin/users` | `GET` | super admin | Everyone who signed in |
 | `/api/admin/users/[id]` | `PATCH` | super admin | Block/unblock (`/block/`, `/unblock/`), change role (`/set-role/`) |
+| `/api/admin/super-admins` | `GET`, `POST`, `DELETE` | super admin | Super admins, added by email |
 | `/api/notifications` | `GET` | signed in | History (`?is_read=false`) |
 | `/api/notifications/unread-count` | `GET` | signed in | Bell badge |
 | `/api/notifications/read` | `PUT` | signed in | Empty body = all, `{ ids }` = some |

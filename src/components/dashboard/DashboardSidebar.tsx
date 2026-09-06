@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   UserCog,
   Menu,
+  ShieldCheck,
   Users,
   Wallet,
   X,
@@ -35,6 +36,7 @@ const ROLE_CONFIG: Record<"admin" | "superadmin", RoleConfig> = {
       { label: "Dashboard", href: "/super-admin", icon: LayoutDashboard },
       { label: "Ustalar arizalari", href: "/super-admin/applications", icon: ClipboardList },
       { label: "Foydalanuvchilar", href: "/super-admin/users", icon: Users },
+      { label: "Super adminlar", href: "/super-admin/admins", icon: ShieldCheck },
     ],
   },
   admin: {

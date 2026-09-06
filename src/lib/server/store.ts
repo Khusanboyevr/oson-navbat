@@ -30,6 +30,8 @@ interface StoreShape {
   users: AppUser[];
   applications: BarberApplication[];
   barbers: BarberProfile[];
+  /** Emails promised the super admin role before their first sign-in. */
+  superAdminInvites?: string[];
 }
 
 /**
@@ -65,7 +67,7 @@ function seed(): StoreShape {
   // Deliberately empty: everything real comes from the backend, and demo ustas on
   // the public map are worse than an empty one — they can't be booked (the backend
   // rejects their ids as invalid UUIDs) and they hide how much real data exists.
-  return { users: [], applications: [], barbers: [] };
+  return { users: [], applications: [], barbers: [], superAdminInvites: [] };
 }
 
 /**
@@ -106,6 +108,7 @@ async function load(): Promise<StoreShape> {
       users: parsed.users ?? [],
       applications: parsed.applications ?? [],
       barbers: withoutDemoBarbers(parsed.barbers ?? []),
+      superAdminInvites: parsed.superAdminInvites ?? [],
     };
     cacheMtimeMs = mtimeMs;
   } catch {
@@ -157,6 +160,45 @@ function superAdminEmails(): string[] {
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
+}
+
+/* ------------------------------------------------ super admin invitations */
+
+/**
+ * Emails a super admin added before that person had ever signed in.
+ *
+ * The backend can only change the role of an account it already has, and an
+ * account only exists there once its owner signs in with Google. This list bridges
+ * that gap: the role is granted on their first sign-in. Nothing else depends on
+ * it, and a real deployment should still keep `SUPER_ADMIN_EMAILS` set so the
+ * first operator can always get in.
+ */
+export async function listSuperAdminInvites(): Promise<string[]> {
+  const data = await load();
+  return [...(data.superAdminInvites ?? [])];
+}
+
+export async function addSuperAdminInvite(email: string): Promise<void> {
+  await mutate((data) => {
+    const normalized = email.trim().toLowerCase();
+    const invites = data.superAdminInvites ?? [];
+    if (!invites.includes(normalized)) invites.push(normalized);
+    data.superAdminInvites = invites;
+  });
+}
+
+export async function removeSuperAdminInvite(email: string): Promise<void> {
+  await mutate((data) => {
+    const normalized = email.trim().toLowerCase();
+    data.superAdminInvites = (data.superAdminInvites ?? []).filter((item) => item !== normalized);
+  });
+}
+
+/** Env list and invitations together — both grant the role on sign-in. */
+export async function isPromisedSuperAdmin(email: string): Promise<boolean> {
+  const normalized = email.trim().toLowerCase();
+  if (superAdminEmails().includes(normalized)) return true;
+  return (await listSuperAdminInvites()).includes(normalized);
 }
 
 /** Env list wins; if it's empty the very first account to sign in bootstraps as super admin. */

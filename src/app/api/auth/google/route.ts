@@ -14,6 +14,7 @@ import {
 import {
   findApplicationByEmail,
   findBarberByEmail,
+  isPromisedSuperAdmin,
   updateUser,
   upsertGoogleUser,
 } from "@/lib/server/store";
@@ -62,13 +63,17 @@ export async function POST(request: Request): Promise<Response> {
   // that alone is enough to open their panel — even before the backend reports the
   // role back. The backend can still promote further (to super admin); it never
   // demotes, or an operator listed in SUPER_ADMIN_EMAILS could lock themselves out.
-  const [application, ownProfile] = await Promise.all([
+  const [application, ownProfile, promisedSuperAdmin] = await Promise.all([
     findApplicationByEmail(profile.email),
     findBarberByEmail(profile.email),
+    isPromisedSuperAdmin(profile.email),
   ]);
 
   const claims: UserRole[] = [user.role];
   if (application?.status === "approved" || ownProfile) claims.push("barber");
+  // Added by another super admin (or listed in SUPER_ADMIN_EMAILS) before this
+  // person had an account to promote.
+  if (promisedSuperAdmin) claims.push("superadmin");
   if (backend.user?.role) claims.push(normalizeUserRole(backend.user.role));
 
   const role = claims.reduce((best, claim) => (RANK[claim] > RANK[best] ? claim : best), "client");
