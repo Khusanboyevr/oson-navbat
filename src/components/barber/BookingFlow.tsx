@@ -32,7 +32,12 @@ export default function BookingFlow({ barber }: BookingFlowProps) {
 
   return (
     <div className="grid gap-6 pb-36 sm:gap-8 lg:grid-cols-[1fr_360px] lg:pb-0">
-      <div className="flex flex-col gap-6 sm:gap-8">
+      {/*
+        `min-w-0`: a grid item is at least as wide as its content unless told
+        otherwise, and the date strip's content is a long scrolling row — without
+        this the column grows past the phone and the whole page slides sideways.
+      */}
+      <div className="flex min-w-0 flex-col gap-6 sm:gap-8">
         <Step index={1} title="Xizmatni tanlang" done={Boolean(selectedService)}>
           <ServiceList
             services={barber.services}
