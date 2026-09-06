@@ -249,11 +249,19 @@ export default function ApplicationsView() {
                     <span className="font-semibold">
                       Bu usta backendga yozilmadi — mijozlarga ko&apos;rinmaydi.
                     </span>
-                    {syncErrors[application.id] && <span>{syncErrors[application.id]}</span>}
+                    {(syncErrors[application.id] ?? application.backendError) && (
+                      <span>{syncErrors[application.id] ?? application.backendError}</span>
+                    )}
                     <span className="text-foreground/70">
-                      {syncErrors[application.id]?.includes("Tizimga kirilmagan")
+                      {(syncErrors[application.id] ?? application.backendError ?? "").includes(
+                        "Tizimga kirilmagan"
+                      )
                         ? "Backend sessiyangiz tugagan — chiqib, qaytadan Google orqali kiring va \"Qayta yuborish\" ni bosing."
-                        : "Sababni tuzatib, \"Qayta yuborish\" ni bosing."}
+                        : (syncErrors[application.id] ?? application.backendError ?? "").includes(
+                              "super admin"
+                            )
+                          ? "Backend hisobingizni super admin deb bilmaydi. Backend dasturchisidan hisobingizga superadmin roli berishni so'rang, so'ng \"Qayta yuborish\" ni bosing."
+                          : "Sababni tuzatib, \"Qayta yuborish\" ni bosing."}
                     </span>
                   </div>
                 )}

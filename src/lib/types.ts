@@ -68,6 +68,8 @@ export interface BarberApplication extends BarberApplicationInput {
   /** Set when the applicant was already signed in with Google. */
   userId: string | null;
   syncedWithBackend: boolean;
+  /** What the backend answered the last time writing this worker failed. */
+  backendError?: string | null;
 }
 
 /** An approved worker — this is what the map, the home list and /barber/[id] read. */

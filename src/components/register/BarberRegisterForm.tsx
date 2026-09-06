@@ -111,26 +111,63 @@ export default function BarberRegisterForm({
     if (resolved) setAddress((current) => (current.trim() ? current : resolved));
   };
 
+  /**
+   * Locating the user.
+   *
+   * The first attempt asks for GPS accuracy; a desktop without one often just
+   * times out there, so a second attempt drops that requirement before giving up.
+   * Whatever fails, the reason is shown \u2014 "aniqlab bo'lmadi" alone leaves
+   * someone re-clicking a button that will never work (a denied permission has to
+   * be granted in the browser, not here).
+   */
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
-      setError("Brauzeringiz joylashuvni aniqlashni qo'llab-quvvatlamaydi");
+      setError("Brauzeringiz joylashuvni aniqlashni qo'llab-quvvatlamaydi \u2014 xaritadan qo'lda belgilang");
       return;
     }
+    if (!window.isSecureContext) {
+      setError("Joylashuv faqat xavfsiz ulanishda (https) ishlaydi \u2014 xaritadan qo'lda belgilang");
+      return;
+    }
+
     setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        await handlePickLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
+    setError(null);
+
+    const onSuccess = async (position: GeolocationPosition) => {
+      await handlePickLocation({
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      });
+      setIsLocating(false);
+    };
+
+    const describe = (error: GeolocationPositionError): string => {
+      if (error.code === error.PERMISSION_DENIED) {
+        return "Joylashuvga ruxsat berilmagan. Brauzer manzil qatoridagi qulf belgisini bosib ruxsat bering yoki xaritadan qo'lda belgilang.";
+      }
+      if (error.code === error.POSITION_UNAVAILABLE) {
+        return "Qurilmangiz joylashuvni aniqlay olmadi \u2014 xaritadan qo'lda belgilang.";
+      }
+      return "Joylashuvni aniqlash uzoq davom etdi \u2014 xaritadan qo'lda belgilang.";
+    };
+
+    navigator.geolocation.getCurrentPosition(onSuccess, (first) => {
+      if (first.code === first.PERMISSION_DENIED) {
+        setError(describe(first));
         setIsLocating(false);
-      },
-      () => {
-        setError("Joylashuvni aniqlab bo'lmadi — xaritadan qo'lda belgilang");
-        setIsLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10_000 }
-    );
+        return;
+      }
+
+      // Second chance without GPS: wifi/IP positioning is enough for a map pin.
+      navigator.geolocation.getCurrentPosition(
+        onSuccess,
+        (second) => {
+          setError(describe(second));
+          setIsLocating(false);
+        },
+        { enableHighAccuracy: false, timeout: 20_000, maximumAge: 300_000 }
+      );
+    }, { enableHighAccuracy: true, timeout: 8_000 });
   };
 
   const handlePhotoChange = async (file: File | undefined) => {

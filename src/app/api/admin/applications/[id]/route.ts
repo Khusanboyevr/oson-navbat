@@ -58,7 +58,10 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     ? { ok: true, error: null }
     : await createBackendBarberFromApplication(updated, await getBackendCookie());
 
-  if (backend.ok) await updateApplication(id, { syncedWithBackend: true });
+  await updateApplication(id, {
+    syncedWithBackend: backend.ok,
+    backendError: backend.ok ? null : backend.error,
+  });
 
   const barber = await promoteApplicationToBarber(updated);
   const user = await findUserByEmail(updated.email);
