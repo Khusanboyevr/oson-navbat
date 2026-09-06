@@ -13,6 +13,7 @@ export type TranslationKey =
   | "nav.bookings"
   | "nav.favorites"
   | "nav.login"
+  | "nav.profile"
   | "hero.titleMain"
   | "hero.titleAccent"
   | "hero.subtitle"
@@ -44,6 +45,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "nav.bookings": "Bronlarim",
     "nav.favorites": "Sevimlilar",
     "nav.login": "Profilga kirish",
+    "nav.profile": "Profil",
     "hero.titleMain": "Navbat kutishni",
     "hero.titleAccent": "unuting!",
     "hero.subtitle": "O'zingizga yoqqan usta yoki salonni toping va bir necha soniyada joy band qiling.",
@@ -74,6 +76,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "nav.bookings": "Мои брони",
     "nav.favorites": "Избранное",
     "nav.login": "Войти в профиль",
+    "nav.profile": "Профиль",
     "hero.titleMain": "Забудьте об",
     "hero.titleAccent": "ожидании очереди!",
     "hero.subtitle": "Найдите понравившегося мастера или салон и забронируйте место за несколько секунд.",
@@ -104,6 +107,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     "nav.bookings": "My Bookings",
     "nav.favorites": "Favorites",
     "nav.login": "Sign In",
+    "nav.profile": "Profile",
     "hero.titleMain": "Forget about",
     "hero.titleAccent": "waiting in line!",
     "hero.subtitle": "Find a barber or salon you love and book a slot in seconds.",

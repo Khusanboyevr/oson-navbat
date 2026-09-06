@@ -16,6 +16,7 @@ Sign-in is **Google-only** — no phone number, no SMS code (the backend removed
 - **My Bookings** — the customer's real bookings from the backend, split into active and history, cancellable in place
 - **Profile** — the signed-in Google account (name, email, avatar), language selector, a native Web Push notification toggle, role shortcuts (usta schedule / super admin panel), support and logout
 - **Notifications** — a bell icon in the header opens a glass dropdown with in-app notification history; the same events also arrive as native OS push notifications, even with the app closed
+- **App-like on a phone** — the main sections live in a bottom tab bar under the thumb (home, bookings, favourites, account) rather than behind a menu button, and the header shrinks to a title bar. It steps aside during the booking flow, which has its own bottom bar. Installed via the manifest (`display: standalone`), it reads as a native app
 
 ### For workers — usta registration (`/register/barber`)
 A dedicated public link, separate from the customer login. A 3-step form collects everything a profile needs:

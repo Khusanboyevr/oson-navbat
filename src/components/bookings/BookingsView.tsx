@@ -9,6 +9,17 @@ import { useSession } from "@/components/providers/SessionProvider";
 import BookingCard from "@/components/bookings/BookingCard";
 import type { AppBooking } from "@/lib/types";
 
+/**
+ * The relay answers "Tizimga kirilmagan" when the backend session is gone, which
+ * is a re-login, not something the reader can act on as written.
+ */
+function friendlyError(message: string | undefined, fallback: string): string {
+  if (message?.includes("Tizimga kirilmagan")) {
+    return "Sessiyangiz eskirgan — chiqib, qaytadan Google orqali kiring.";
+  }
+  return message ?? fallback;
+}
+
 /** The customer's own bookings, read from the backend. */
 export default function BookingsView() {
   const { user, isLoading: isSessionLoading } = useSession();
@@ -30,7 +41,7 @@ export default function BookingsView() {
       const payload = (await response.json()) as { data?: AppBooking[]; message?: string };
 
       if (!response.ok) {
-        setError(payload.message ?? "Bronlarni yuklab bo'lmadi");
+        setError(friendlyError(payload.message, "Bronlarni yuklab bo'lmadi"));
         return;
       }
       setBookings(payload.data ?? []);
@@ -58,7 +69,7 @@ export default function BookingsView() {
       });
       if (!response.ok) {
         const payload = (await response.json().catch(() => ({}))) as { message?: string };
-        setError(payload.message ?? "Bronni bekor qilib bo'lmadi");
+        setError(friendlyError(payload.message, "Bronni bekor qilib bo'lmadi"));
         return;
       }
       await load();

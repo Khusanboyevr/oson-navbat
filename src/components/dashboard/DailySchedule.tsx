@@ -7,6 +7,17 @@ import StatCard from "@/components/dashboard/StatCard";
 import { formatNumber } from "@/lib/format";
 import type { AppBooking, BookingStatusKey } from "@/lib/types";
 
+/**
+ * The relay answers "Tizimga kirilmagan" when the backend session is gone, which
+ * is a re-login, not something the reader can act on as written.
+ */
+function friendlyError(message: string | undefined, fallback: string): string {
+  if (message?.includes("Tizimga kirilmagan")) {
+    return "Sessiyangiz eskirgan — chiqib, qaytadan Google orqali kiring.";
+  }
+  return message ?? fallback;
+}
+
 /** The usta's day, read from `GET /bookings/?scope=today`. */
 export default function DailySchedule() {
   const [entries, setEntries] = useState<AppBooking[]>([]);
@@ -20,7 +31,7 @@ export default function DailySchedule() {
       const payload = (await response.json()) as { data?: AppBooking[]; message?: string };
 
       if (!response.ok) {
-        setError(payload.message ?? "Jadvalni yuklab bo'lmadi");
+        setError(friendlyError(payload.message, "Jadvalni yuklab bo'lmadi"));
         return;
       }
       setEntries(payload.data ?? []);
@@ -57,7 +68,7 @@ export default function DailySchedule() {
       });
       if (!response.ok) {
         const payload = (await response.json().catch(() => ({}))) as { message?: string };
-        setError(payload.message ?? "Amalni bajarib bo'lmadi");
+        setError(friendlyError(payload.message, "Amalni bajarib bo'lmadi"));
         return;
       }
       setError(null);
