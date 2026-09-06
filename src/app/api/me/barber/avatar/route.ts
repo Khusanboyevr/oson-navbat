@@ -59,9 +59,9 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 /**
- * Removing the photo. `API.md` documents uploading but not clearing, so this tries
- * a null field PATCH and reports what the backend says rather than pretending the
- * photo is gone while it still serves one.
+ * Removing the photo: `PATCH /barber/me/` with `{ avatar: null }` as JSON, not
+ * multipart — confirmed by the backend. (A user's own profile picture, which is a
+ * different thing, has `DELETE /auth/me/avatar/`.)
  */
 export async function DELETE(): Promise<Response> {
   const user = await getCurrentUser();

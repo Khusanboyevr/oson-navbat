@@ -1,4 +1,4 @@
-import { fetchAdminUsers, setBackendUserRole } from "@/lib/server/backend";
+import { fetchAdminUsers, inviteBackendUser, setBackendUserRole } from "@/lib/server/backend";
 import { forbidden, getBackendCookie, requireSuperAdmin } from "@/lib/server/session";
 import {
   addSuperAdminInvite,
@@ -15,13 +15,13 @@ export const dynamic = "force-dynamic";
 /**
  * Who can run the platform.
  *
- * Two cases, because the backend can only change the role of an account it
- * already has, and an account only exists there once its owner has signed in with
- * Google:
+ * `POST /super-admin/users/invite/` handles both cases on the backend: it updates
+ * an existing account or creates a password-less one, which Google sign-in links
+ * by email later. So the promise lives where it survives a redeploy.
  *
- * - the person has signed in → `POST /super-admin/users/<id>/set-role/`;
- * - they haven't yet → their email is remembered and the role is granted the
- *   moment they first sign in.
+ * The local list is only a fallback for when that call can't be made (the backend
+ * is down, or this operator isn't a super admin there yet) — it grants the role at
+ * first sign-in so the panel still works.
  */
 
 export interface SuperAdminEntry {
@@ -83,36 +83,36 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const cookie = await getBackendCookie();
-  const remote = await fetchAdminUsers(cookie, email);
-  const backendAccount = (remote.data ?? []).find(
-    (user) => user.email.toLowerCase() === email
-  );
+  const invited = await inviteBackendUser(email, "superadmin", cookie);
 
-  // Remember the promise either way: it is what grants the role if the backend
-  // call can't be made now, and what covers a first sign-in later.
-  await addSuperAdminInvite(email);
-
+  // Keep the local mirror in step either way, so the role also applies to this
+  // app's own session the moment they sign in.
   const localAccount = await findUserByEmail(email);
   if (localAccount) await updateUser(localAccount.id, { role: "superadmin" });
 
-  if (!backendAccount) {
-    return Response.json({
-      status: "ok",
-      data: { state: "invited" },
-      message:
-        "Bu email hali tizimga kirmagan. U Google orqali birinchi marta kirganda super admin bo'ladi.",
-    });
-  }
-
-  const result = await setBackendUserRole(backendAccount.id, "superadmin", cookie);
-  if (!result.ok) {
+  if (!invited.ok) {
+    // The backend refused: remember it here so the panel still grants the role,
+    // and say what happened rather than pretending it worked.
+    await addSuperAdminInvite(email);
     return Response.json(
-      { status: "error", message: result.error ?? "Backend rolni o'zgartirmadi" },
-      { status: result.status || 502 }
+      {
+        status: "error",
+        message: `Backend qabul qilmadi: ${invited.error ?? "noma'lum xato"}. Bu email shu ilovada eslab qolindi — kirganda super admin bo'ladi.`,
+      },
+      { status: invited.status || 502 }
     );
   }
 
-  return Response.json({ status: "ok", data: { state: "active" } });
+  await removeSuperAdminInvite(email);
+
+  return Response.json({
+    status: "ok",
+    data: { state: invited.status === 201 ? "invited" : "active" },
+    message:
+      invited.status === 201
+        ? "Hisob yaratildi. Bu email bilan Google orqali kirgan zahoti super admin bo'ladi."
+        : "Super admin huquqi berildi.",
+  });
 }
 
 export async function DELETE(request: Request): Promise<Response> {

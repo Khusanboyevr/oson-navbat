@@ -764,3 +764,28 @@ export async function uploadBarberAvatar(
 
   return proxyAsUser<RawBackendBarber>(path, { method: "PATCH", body: form }, cookie);
 }
+
+/**
+ * `POST /super-admin/users/invite/` — grants a role to an email address.
+ *
+ * The backend creates the (password-less) account when it doesn't exist yet, and
+ * links it the first time that person signs in with Google. That is why this app
+ * keeps no invitation queue of its own: the promise lives where it survives a
+ * redeploy. `201` means a new account was made, `200` that an existing one was
+ * updated; both are successes.
+ */
+export async function inviteBackendUser(
+  email: string,
+  role: UserRole,
+  cookie: string | null,
+  fullName?: string
+): Promise<ProxyResult<{ id?: string | number }>> {
+  return proxyAsUser<{ id?: string | number }>(
+    "/super-admin/users/invite/",
+    {
+      method: "POST",
+      body: JSON.stringify({ email, role, ...(fullName ? { full_name: fullName } : {}) }),
+    },
+    cookie
+  );
+}

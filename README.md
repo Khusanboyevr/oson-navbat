@@ -39,7 +39,7 @@ The application lands in the super admin's review queue. **On approval the publi
 - **Ustalar arizalari** (`/super-admin/applications`) — every worker application with all submitted details; approving creates the salon and the barber **on the backend** (`POST /super-admin/salons/` + `/super-admin/barbers/`), reject or delete otherwise
 - **Ustalar ro'yxati** — read from `GET /super-admin/barbers/`; add by hand (same form), block/activate, delete
 - **Foydalanuvchilar** (`/super-admin/users`) — read from `GET /super-admin/users/`; search, block/unblock and change role. There is no delete: the backend creates accounts through Google sign-in and blocks them instead
-- **Super adminlar** (`/super-admin/admins`) — add or remove the people who can run the platform. Someone who has already signed in is promoted on the backend (`/super-admin/users/<id>/set-role/`); an email that never has is remembered and granted the role the first time they sign in, since the backend has no account to promote until then
+- **Super adminlar** (`/super-admin/admins`) — add or remove the people who can run the platform, by email. `POST /super-admin/users/invite/` covers both cases: it updates an existing account or creates a password-less one that Google sign-in links later, so the promise outlives a redeploy. If that call is refused, the email is remembered locally as a fallback and the panel says so
 
 ## 🛠 Tech Stack
 
@@ -204,6 +204,7 @@ Field names worth pinning down: account status is `is_active` (**`false` means b
 | `POST` | `/super-admin/barbers/<id>/block/` `/activate/` | Block / activate |
 | `GET` | `/super-admin/users/` `/<id>/` | Accounts |
 | `POST` | `/super-admin/users/<id>/block/` `/unblock/` `/set-role/` | Account actions |
+| `POST` | `/super-admin/users/invite/` | Grant a role to an email (`201` creates the account, `200` updates it) |
 | `GET` | `/super-admin/stats/?period=day\|week\|month\|year\|all` | Platform totals |
 
 All of them paginate and accept `?search=` / `?ordering=`.
@@ -225,7 +226,6 @@ Native **Web Push**, backed by the Django backend ([`pywebpush`](https://pypi.or
 
 1. **Confirm the booking payloads.** `API.md` lives in the backend repo, which this one can't read, so `POST /bookings/` currently sends `{ barber, service, date, time }` and `GET /bookings/available-slots/` asks with `?barber=&date=&service=`. Both surface the backend's own error rather than guessing further; if the field names differ, they are one file to change (`src/lib/server/bookings-api.ts`). Reads are mapped defensively and don't depend on exact names.
 2. Confirm the `specialty` codes accepted by `/super-admin/barbers/` and `/super-admin/salons/`. The frontend sends `men` / `women` / `kids` (mapped from erkaklar / ayollar / bolalar) and `unisex` was the example for salons; if the vocabulary differs, it is one constant to change (`SPECIALTY_CODE` in `src/lib/server/backend.ts`).
-3. **Confirm how to clear a profile photo.** Uploading is documented; removing isn't. `DELETE /api/me/barber/avatar` currently sends `PATCH /barber/me/` with `avatar: null` and surfaces whatever the backend answers.
 4. **Move the application queue server-side.** Worker self-registration has no home on the backend (barbers are created by a super admin), so `/register/barber` submissions queue in this app's store until approved. They live in a JSON file under `DATA_DIR` on the frontend server — not in the browser — but they are still invisible to any other deployment and vulnerable to a redeploy on an ephemeral filesystem. The backend dev has offered the table and endpoints; worth taking.
 
 ## 🔍 SEO & PWA
