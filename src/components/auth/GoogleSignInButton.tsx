@@ -8,6 +8,8 @@ import { fetchAuthMethods, loadGoogleIdentity } from "@/lib/google-auth";
 interface GoogleSignInButtonProps {
   onCredential: (credential: string) => void;
   onError: (message: string) => void;
+  /** The parent's current error, so an origin rejection can explain the fix. */
+  error?: string | null;
   disabled?: boolean;
   /** Shown while the credential is being exchanged for a session. */
   isSubmitting?: boolean;
@@ -21,6 +23,7 @@ interface GoogleSignInButtonProps {
 export default function GoogleSignInButton({
   onCredential,
   onError,
+  error,
   disabled,
   isSubmitting,
 }: GoogleSignInButtonProps) {
@@ -31,6 +34,7 @@ export default function GoogleSignInButton({
   const [isReady, setIsReady] = useState(false);
   const [isUnavailable, setIsUnavailable] = useState(false);
   const [isInAppBrowser, setIsInAppBrowser] = useState(false);
+  const [origin, setOrigin] = useState("");
 
   // Google's callback is registered once; these keep it pointed at the latest props.
   useEffect(() => {
@@ -44,6 +48,7 @@ export default function GoogleSignInButton({
   useEffect(() => {
     const ua = navigator.userAgent;
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOrigin(window.location.origin);
     setIsInAppBrowser(
       /FBAN|FBAV|FB_IAB|Instagram|Line\/|MicroMessenger|Snapchat|TikTok|Twitter|WebView|; wv\)/i.test(ua)
     );
@@ -108,6 +113,19 @@ export default function GoogleSignInButton({
           O&apos;ng yuqoridagi menyudan &quot;Brauzerda ochish&quot; ni tanlang yoki{" "}
           <span className="font-mono">qulaynavbat.uz</span> ni Chrome/Safari&apos;da oching.
         </p>
+      </div>
+    );
+  }
+
+  if (error?.includes("origin")) {
+    return (
+      <div className="flex flex-col gap-2 rounded-2xl border border-danger/30 bg-danger/10 px-4 py-3 text-center">
+        <p className="text-xs font-semibold text-danger">Google bu manzildan kirishga ruxsat bermayapti.</p>
+        <p className="text-xs text-foreground/80">
+          Google Cloud Console &rarr; OAuth client &rarr; &quot;Authorized JavaScript origins&quot; ga shu
+          manzilni qo&apos;shish kerak:
+        </p>
+        <code className="rounded-lg bg-white/60 px-3 py-1.5 text-xs font-mono text-foreground">{origin}</code>
       </div>
     );
   }

@@ -84,6 +84,7 @@ export default function AuthView() {
       <GoogleSignInButton
         onCredential={handleCredential}
         onError={setError}
+        error={error}
         isSubmitting={isSubmitting}
       />
 
