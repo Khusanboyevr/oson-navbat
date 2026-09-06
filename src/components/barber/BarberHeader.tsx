@@ -56,7 +56,7 @@ export default function BarberHeader({ barber }: BarberHeaderProps) {
           </div>
 
           {cheapest !== null && (
-            <div className="shrink-0 rounded-2xl border border-white/40 bg-white/50 px-4 py-2.5 text-right backdrop-blur-md">
+            <div className="hidden shrink-0 rounded-2xl border border-white/40 bg-white/50 px-4 py-2.5 text-right backdrop-blur-md sm:block">
               <p className="text-xs text-muted-foreground">Xizmatlar</p>
               <p className="text-sm font-bold text-foreground">{formatNumber(cheapest)} so&apos;mdan</p>
             </div>
@@ -81,6 +81,11 @@ export default function BarberHeader({ barber }: BarberHeaderProps) {
           <span className="flex items-center gap-1.5 rounded-full border border-white/50 bg-white/50 px-3 py-1.5 text-xs font-medium text-foreground/75">
             {barber.services.length} ta xizmat
           </span>
+          {cheapest !== null && (
+            <span className="rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary sm:hidden">
+              {formatNumber(cheapest)} so&apos;mdan
+            </span>
+          )}
         </div>
 
         {barber.bio && <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{barber.bio}</p>}

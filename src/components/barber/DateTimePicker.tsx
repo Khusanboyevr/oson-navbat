@@ -54,7 +54,7 @@ export default function DateTimePicker({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {dates.map((date) => {
           const isSelected = date.iso === selectedDateIso;
           return (
@@ -62,7 +62,7 @@ export default function DateTimePicker({
               key={date.iso}
               type="button"
               onClick={() => onSelectDate(date.iso)}
-              className={`flex shrink-0 flex-col items-center gap-0.5 rounded-2xl border px-4 py-2.5 backdrop-blur-md transition-all duration-200 ease-in-out active:scale-95 ${
+              className={`flex shrink-0 snap-start flex-col items-center gap-0.5 rounded-2xl border px-3.5 py-2.5 backdrop-blur-md transition-all duration-200 ease-in-out active:scale-95 sm:px-4 ${
                 isSelected
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-white/40 bg-white/50 text-foreground hover:bg-white/70"
@@ -84,7 +84,7 @@ export default function DateTimePicker({
         </p>
       )}
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+      <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
         {TIME_SLOTS.map((time) => {
           const taken = available !== null && !available.includes(time);
           const isSelected = !taken && time === selectedTime;
@@ -94,7 +94,7 @@ export default function DateTimePicker({
               type="button"
               disabled={taken}
               onClick={() => onSelectTime(time)}
-              className={`rounded-xl border px-3 py-2.5 text-sm font-medium backdrop-blur-md transition-all duration-200 ease-in-out ${
+              className={`rounded-xl border px-2 py-3 text-sm font-medium tabular-nums backdrop-blur-md transition-all duration-200 ease-in-out sm:px-3 sm:py-2.5 ${
                 taken
                   ? "cursor-not-allowed border-white/30 bg-white/20 text-muted-foreground line-through"
                   : isSelected

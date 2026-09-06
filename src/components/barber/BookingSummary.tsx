@@ -87,20 +87,23 @@ export default function BookingSummary({
         className="fixed inset-x-0 bottom-0 z-40 border-t border-white/40 bg-white/80 px-4 py-3 backdrop-blur-xl lg:hidden"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <div className="min-w-0">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-foreground">
               {service?.name ?? "Xizmatni tanlang"}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              {time ? `${dateLabel}, ${time} • ${priceLabel}` : (hint ?? "")}
+              {time ? `${dateLabel}, ${time}` : (hint ?? "")}
             </p>
+            {service && (
+              <p className="text-sm font-bold text-foreground">{priceLabel}</p>
+            )}
           </div>
           <button
             type="button"
             onClick={onContinue}
             disabled={!isComplete}
-            className="btn-premium shrink-0 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground shadow-[0_4px_16px_rgba(4,20,73,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-[0_8px_24px_rgba(4,20,73,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
+            className="btn-premium h-12 shrink-0 rounded-full bg-accent px-6 text-sm font-semibold text-accent-foreground shadow-[0_4px_16px_rgba(4,20,73,0.35)] transition-all duration-200 ease-in-out hover:-translate-y-[1px] hover:bg-accent-hover hover:shadow-[0_8px_24px_rgba(4,20,73,0.45)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
           >
             Davom etish
           </button>

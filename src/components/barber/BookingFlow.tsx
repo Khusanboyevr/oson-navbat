@@ -31,8 +31,8 @@ export default function BookingFlow({ barber }: BookingFlowProps) {
   };
 
   return (
-    <div className="grid gap-8 pb-28 lg:grid-cols-[1fr_360px] lg:pb-0">
-      <div className="flex flex-col gap-8">
+    <div className="grid gap-6 pb-36 sm:gap-8 lg:grid-cols-[1fr_360px] lg:pb-0">
+      <div className="flex flex-col gap-6 sm:gap-8">
         <Step index={1} title="Xizmatni tanlang" done={Boolean(selectedService)}>
           <ServiceList
             services={barber.services}
