@@ -201,12 +201,17 @@ export async function isPromisedSuperAdmin(email: string): Promise<boolean> {
   return (await listSuperAdminInvites()).includes(normalized);
 }
 
-/** Env list wins; if it's empty the very first account to sign in bootstraps as super admin. */
-function resolveRole(email: string, isFirstUser: boolean): UserRole {
-  const allowlist = superAdminEmails();
-  if (allowlist.includes(email.toLowerCase())) return "superadmin";
-  if (allowlist.length === 0 && isFirstUser) return "superadmin";
-  return "client";
+/**
+ * Only an explicitly named account is a super admin here.
+ *
+ * There used to be a bootstrap - "if no emails are configured, the first account
+ * to sign in becomes super admin" - which is only safe when this store is
+ * durable. On a serverless host it is not: every cold instance starts empty, so
+ * every arrival looked like the first one and was handed the panel. The backend's
+ * own role is the real source of truth; this list is the local override.
+ */
+function resolveRole(email: string): UserRole {
+  return superAdminEmails().includes(email.toLowerCase()) ? "superadmin" : "client";
 }
 
 export async function listUsers(): Promise<AppUser[]> {
@@ -255,7 +260,7 @@ export async function upsertGoogleUser(
       email: identity.email,
       name: identity.name || identity.email.split("@")[0],
       picture: identity.picture,
-      role: resolveRole(identity.email, data.users.length === 0),
+      role: resolveRole(identity.email),
       status: "active",
       createdAt: new Date().toISOString(),
       syncedWithBackend,

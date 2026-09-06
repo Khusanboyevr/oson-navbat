@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import {
+  fetchBackendMe,
   loginWithBackendGoogle,
   normalizeUserRole,
   verifyGoogleIdToken,
@@ -69,12 +70,26 @@ export async function POST(request: Request): Promise<Response> {
     isPromisedSuperAdmin(profile.email),
   ]);
 
+  const mirroredCookie =
+    backend.ok && backend.cookies.length > 0
+      ? backend.cookies.map((value) => value.split(";")[0]).join("; ")
+      : null;
+
+  // The backend owns roles, so its answer matters most. When the sign-in response
+  // doesn't carry one, ask /auth/me/ rather than leaving an usta or an admin
+  // looking like a client.
+  let backendRole = backend.user?.role ? normalizeUserRole(backend.user.role) : null;
+  if (!backendRole && mirroredCookie) {
+    const me = await fetchBackendMe(mirroredCookie);
+    if (me.user?.role) backendRole = normalizeUserRole(me.user.role);
+  }
+
   const claims: UserRole[] = [user.role];
   if (application?.status === "approved" || ownProfile) claims.push("barber");
   // Added by another super admin (or listed in SUPER_ADMIN_EMAILS) before this
   // person had an account to promote.
   if (promisedSuperAdmin) claims.push("superadmin");
-  if (backend.user?.role) claims.push(normalizeUserRole(backend.user.role));
+  if (backendRole) claims.push(backendRole);
 
   const role = claims.reduce((best, claim) => (RANK[claim] > RANK[best] ? claim : best), "client");
   if (role !== user.role) user = (await updateUser(user.id, { role })) ?? user;
@@ -82,11 +97,10 @@ export async function POST(request: Request): Promise<Response> {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, issueSessionCookieValue(user), sessionCookieOptions);
 
-  if (backend.ok && backend.cookies.length > 0) {
+  if (mirroredCookie) {
     // Keep Django's session/refresh/CSRF cookies server-side; the browser never
     // needs to see them, and this is what lets us call the backend as the user.
-    const mirrored = backend.cookies.map((value) => value.split(";")[0]).join("; ");
-    cookieStore.set(BACKEND_COOKIE, mirrored, sessionCookieOptions);
+    cookieStore.set(BACKEND_COOKIE, mirroredCookie, sessionCookieOptions);
   }
 
   return Response.json({

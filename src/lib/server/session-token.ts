@@ -10,6 +10,13 @@ import type { UserRole } from "@/lib/types";
  * `.data`. A signed cookie needs no storage at all — any instance can verify it.
  */
 
+/**
+ * Bumped when previously issued sessions must not be trusted any more. v1 cookies
+ * could carry a super admin role granted by the old first-user bootstrap, so they
+ * are refused and everyone signs in again.
+ */
+const SESSION_VERSION = 2;
+
 export interface SessionPayload {
   /** Local mirror id, used to keep the store's copy of the account in step. */
   id: string;
@@ -19,6 +26,8 @@ export interface SessionPayload {
   role: UserRole;
   /** Issued-at, seconds. */
   iat: number;
+  /** Token generation; anything older is refused. */
+  v?: number;
 }
 
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -43,8 +52,10 @@ function signature(body: string): string {
   return createHmac("sha256", secret()).update(body).digest("base64url");
 }
 
-export function signSession(payload: Omit<SessionPayload, "iat">): string {
-  const body = base64url(JSON.stringify({ ...payload, iat: Math.floor(Date.now() / 1000) }));
+export function signSession(payload: Omit<SessionPayload, "iat" | "v">): string {
+  const body = base64url(
+    JSON.stringify({ ...payload, iat: Math.floor(Date.now() / 1000), v: SESSION_VERSION })
+  );
   return `${body}.${signature(body)}`;
 }
 
@@ -65,6 +76,7 @@ export function verifySession(value: string | undefined): SessionPayload | null 
   try {
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
     if (!payload.email || !payload.id) return null;
+    if (payload.v !== SESSION_VERSION) return null;
     if (Math.floor(Date.now() / 1000) - payload.iat > MAX_AGE_SECONDS) return null;
     return payload;
   } catch {
