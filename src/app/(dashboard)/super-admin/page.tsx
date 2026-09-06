@@ -61,7 +61,7 @@ export default async function SuperAdminPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5">
         <StatCard icon={Users} label="Ro'yxatdan o'tganlar" value={formatNumber(userCount)} />
         <StatCard icon={Scissors} label="Faol ustalar" value={formatNumber(activeBarbers)} />
         <StatCard icon={ClipboardList} label="Kutilayotgan arizalar" value={formatNumber(pendingApplications)} />

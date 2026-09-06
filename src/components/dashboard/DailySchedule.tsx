@@ -89,7 +89,7 @@ export default function DailySchedule() {
         <p className="rounded-2xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>
       )}
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5">
         <StatCard icon={Users} label="Bugungi mijozlar" value={stats.clients.toString()} />
         <StatCard icon={Clock} label="Kutilayotgan" value={stats.pending.toString()} />
         <StatCard icon={Wallet} label="Bugungi daromad" value={`${formatNumber(stats.earnings)} so'm`} />
