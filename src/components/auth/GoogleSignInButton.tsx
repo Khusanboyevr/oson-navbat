@@ -30,12 +30,24 @@ export default function GoogleSignInButton({
   const errorRef = useRef(onError);
   const [isReady, setIsReady] = useState(false);
   const [isUnavailable, setIsUnavailable] = useState(false);
+  const [isInAppBrowser, setIsInAppBrowser] = useState(false);
 
   // Google's callback is registered once; these keep it pointed at the latest props.
   useEffect(() => {
     callbackRef.current = onCredential;
     errorRef.current = onError;
   }, [onCredential, onError]);
+
+  // Telegram, Instagram and the like open links in an embedded webview, which
+  // Google blocks outright ("disallowed_useragent"). Nothing on our side fixes
+  // that — the page has to be opened in a real browser.
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsInAppBrowser(
+      /FBAN|FBAV|FB_IAB|Instagram|Line\/|MicroMessenger|Snapchat|TikTok|Twitter|WebView|; wv\)/i.test(ua)
+    );
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +97,20 @@ export default function GoogleSignInButton({
       cancelled = true;
     };
   }, [language]);
+
+  if (isInAppBrowser) {
+    return (
+      <div className="flex flex-col gap-2 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-center">
+        <p className="text-xs font-semibold text-foreground">
+          Bu ilova ichidagi brauzerda Google kirishga ruxsat bermaydi.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          O&apos;ng yuqoridagi menyudan &quot;Brauzerda ochish&quot; ni tanlang yoki{" "}
+          <span className="font-mono">qulaynavbat.uz</span> ni Chrome/Safari&apos;da oching.
+        </p>
+      </div>
+    );
+  }
 
   if (isUnavailable) {
     return (

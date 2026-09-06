@@ -1,6 +1,14 @@
 "use client";
 
-import { CalendarClock, Heart, Home, LogIn, User, type LucideIcon } from "lucide-react";
+import {
+  CalendarClock,
+  Heart,
+  Home,
+  LayoutDashboard,
+  LogIn,
+  User,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/components/providers/LanguageProvider";
@@ -37,7 +45,19 @@ export default function BottomNav() {
     ? { href: "/profile", icon: User, key: "nav.profile" }
     : { href: "/login", icon: LogIn, key: "nav.login" };
 
-  const tabs = [...TABS, accountTab];
+  // An usta lands on the customer app like everyone else, so their own panel has
+  // to be one tap away — it takes the favourites slot, which matters less to
+  // someone who is here to work.
+  const panelTab: Tab | null =
+    user?.role === "superadmin"
+      ? { href: "/super-admin", icon: LayoutDashboard, key: "nav.panel" }
+      : user?.role === "barber"
+        ? { href: "/admin", icon: LayoutDashboard, key: "nav.panel" }
+        : null;
+
+  const tabs = panelTab
+    ? [TABS[0], TABS[1], panelTab, accountTab]
+    : [...TABS, accountTab];
 
   return (
     <nav

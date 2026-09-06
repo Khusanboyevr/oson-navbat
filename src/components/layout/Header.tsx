@@ -66,6 +66,15 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-1 sm:gap-2">
+          {(user?.role === "barber" || user?.role === "superadmin") && (
+            <Link
+              href={user.role === "superadmin" ? "/super-admin" : "/admin"}
+              className="hidden rounded-full border border-white/50 bg-white/30 px-4 py-2 text-sm font-semibold text-foreground backdrop-blur-xl transition-all duration-200 hover:-translate-y-[1px] hover:bg-white/50 active:scale-95 md:inline-block"
+            >
+              {t("nav.panel")}
+            </Link>
+          )}
+
           <NotificationBell />
 
           {user ? (
