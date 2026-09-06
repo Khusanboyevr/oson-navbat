@@ -87,7 +87,7 @@ cp .env.local.example .env.local
 
 | Variable | Required | What it does |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | ✅ | The Django backend base URL (`https://api.qulaynavbat.uz/api/v1`). Everything else, the Google client ID included, is discovered from it. |
+| `NEXT_PUBLIC_API_URL` | — | Overrides the Django backend base URL, which defaults to `https://api.qulaynavbat.uz/api/v1`. Everything else, the Google client ID included, is discovered from it. Set it only to point at staging or a local Django. |
 | `GOOGLE_CLIENT_ID` | — | Overrides the client ID the backend publishes. Only for a staging build pointing at another Google project. |
 | `SESSION_SECRET` | — | Signs the session cookie. Set it in production — changing it signs everyone out, and instances that disagree on it won't accept each other's sessions. |
 | `SUPER_ADMIN_EMAILS` | — | Comma-separated emails that get the super admin role. **If empty, the first account to sign in becomes the super admin.** |

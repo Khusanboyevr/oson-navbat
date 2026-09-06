@@ -19,7 +19,14 @@ import type {
  * these endpoints directly for auth.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+/**
+ * The backend's address. `NEXT_PUBLIC_API_URL` overrides it (staging, a local
+ * Django), but it defaults to production rather than to nothing: an unset variable
+ * used to leave a deployment silently unable to reach the backend at all — no
+ * sign-in, no ustas, no bookings — which is a worse failure than pointing at the
+ * one backend this app has ever had.
+ */
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.qulaynavbat.uz/api/v1";
 const REQUEST_TIMEOUT_MS = 10_000;
 
 export const isBackendConfigured = API_BASE_URL.length > 0;
