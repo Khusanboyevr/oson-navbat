@@ -4,6 +4,7 @@ import { ChevronRight, ClipboardList, LayoutDashboard, LifeBuoy, Loader2, LogOut
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ProfileHeader from "@/components/profile/ProfileHeader";
+import InstallAppCard from "@/components/pwa/InstallAppCard";
 import { useLanguage } from "@/components/providers/LanguageProvider";
 import { useNotifications } from "@/components/providers/NotificationsProvider";
 import { useSession } from "@/components/providers/SessionProvider";
@@ -87,6 +88,8 @@ export default function ProfileView() {
           <ChevronRight size={16} className="text-muted-foreground" />
         </Link>
       )}
+
+      <InstallAppCard />
 
       <section className="flex flex-col gap-5 rounded-3xl border border-white/30 bg-white/20 p-5 shadow-[0_4px_30px_rgba(0,0,0,0.1)] backdrop-blur-xl sm:p-6">
         <h2 className="text-lg font-bold text-foreground">{t("profile.settings")}</h2>

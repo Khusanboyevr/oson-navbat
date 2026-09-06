@@ -59,7 +59,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     getPushPermissionState().then((state) => setPushEnabled(state === "granted"));
-    if (isPushSupported()) {
+    // Registered wherever service workers exist, not only where push does: the
+    // worker is also what makes the app installable to the home screen.
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
     fetchVapidKey()

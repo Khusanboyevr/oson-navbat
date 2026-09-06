@@ -3,18 +3,21 @@
 import { Ban, CheckCircle2, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import AddBarberModal from "@/components/dashboard/AddBarberModal";
+import BarberDetailModal from "@/components/dashboard/BarberDetailModal";
 import type { BarberProfile } from "@/lib/types";
 
 /**
- * The super admin's worker list — add, block/unblock and delete. Rows served by
- * the Django backend are marked and left read-only, since this app isn't their
- * owner.
+ * The super admin's worker list — open a row to read the whole profile, block or
+ * unblock, and delete. Rows the Django backend owns are written through it, so
+ * the same buttons work whichever side the usta was created on.
  */
 export default function BarberManagement() {
   const [barbers, setBarbers] = useState<BarberProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -40,21 +43,37 @@ export default function BarberManagement() {
     void load();
   }, [load]);
 
-  const mutate = async (id: string, init: RequestInit) => {
+  const mutate = async (id: string, init: RequestInit): Promise<boolean> => {
     setBusyId(id);
     try {
       const response = await fetch(`/api/admin/barbers/${id}`, init);
       if (!response.ok) {
         const payload = (await response.json().catch(() => ({}))) as { message?: string };
         setError(payload.message ?? "Amalni bajarib bo'lmadi");
-        return;
+        return false;
       }
       setError(null);
       await load();
+      return true;
     } finally {
       setBusyId(null);
     }
   };
+
+  const toggleStatus = (barber: BarberProfile) =>
+    mutate(barber.id, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: barber.status === "active" ? "blocked" : "active" }),
+    });
+
+  const remove = async (id: string) => {
+    const ok = await mutate(id, { method: "DELETE" });
+    setConfirmDeleteId(null);
+    if (ok) setOpenId(null);
+  };
+
+  const openBarber = barbers.find((barber) => barber.id === openId) ?? null;
 
   return (
     <section className="flex flex-col gap-5">
@@ -62,7 +81,8 @@ export default function BarberManagement() {
         <div>
           <h2 className="font-serif text-xl font-bold text-foreground sm:text-2xl">Ustalar ro&apos;yxati</h2>
           <p className="text-xs text-muted-foreground">
-            Bu yerdagi har bir faol usta bosh sahifadagi xaritada ko&apos;rinadi.
+            Ustani bosing — to&apos;liq ma&apos;lumotlari ochiladi. Faol ustalar bosh sahifadagi xaritada
+            ko&apos;rinadi.
           </p>
         </div>
         <button
@@ -93,14 +113,18 @@ export default function BarberManagement() {
           {barbers.map((barber) => {
             const isActive = barber.status === "active";
             const isBusy = busyId === barber.id;
-            const isBackendOwned = barber.source === "backend";
+            const isConfirming = confirmDeleteId === barber.id;
 
             return (
               <div
                 key={barber.id}
                 className="flex flex-col gap-4 rounded-2xl border border-white/30 bg-white/20 p-4 shadow-[0_4px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-all duration-300 hover:bg-white/25 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex min-w-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setOpenId(barber.id)}
+                  className="flex min-w-0 items-center gap-3 text-left transition-transform duration-200 active:scale-[0.99]"
+                >
                   {barber.photo ? (
                     // eslint-disable-next-line @next/next/no-img-element -- data URL or backend-hosted avatar
                     <img src={barber.photo} alt="" className="h-11 w-11 rounded-xl object-cover" />
@@ -118,10 +142,9 @@ export default function BarberManagement() {
                     <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
                       <MapPin size={11} className="text-primary" />
                       {barber.location}
-                      {isBackendOwned && " • backend"}
                     </p>
                   </div>
-                </div>
+                </button>
 
                 <div className="flex items-center justify-between gap-3 sm:justify-end">
                   <span
@@ -134,49 +157,72 @@ export default function BarberManagement() {
                     {isActive ? "Faol" : "Bloklangan"}
                   </span>
 
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={isBusy || isBackendOwned}
-                      title={isBackendOwned ? "Backend boshqaradi" : undefined}
-                      onClick={() =>
-                        mutate(barber.id, {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ status: isActive ? "blocked" : "active" }),
-                        })
-                      }
-                      className={`btn-premium flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-200 ease-in-out hover:-translate-y-[1px] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
-                        isActive
-                          ? "bg-accent text-accent-foreground hover:bg-accent-hover"
-                          : "bg-primary text-primary-foreground hover:bg-primary-hover"
-                      }`}
-                    >
-                      {isBusy ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : isActive ? (
-                        <Ban size={12} />
-                      ) : (
-                        <CheckCircle2 size={12} />
-                      )}
-                      {isActive ? "Bloklash" : "Faollashtirish"}
-                    </button>
+                  {isConfirming ? (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => void remove(barber.id)}
+                        className="btn-premium rounded-full bg-danger px-3 py-1.5 text-xs font-semibold text-white transition-all duration-200 active:scale-95 disabled:opacity-40"
+                      >
+                        {isBusy ? <Loader2 size={12} className="animate-spin" /> : "O'chirilsinmi?"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="rounded-full border border-white/50 bg-white/40 px-3 py-1.5 text-xs font-medium text-foreground transition-all duration-200 hover:bg-white/60 active:scale-95"
+                      >
+                        Yo&apos;q
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => void toggleStatus(barber)}
+                        className={`btn-premium flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-200 ease-in-out hover:-translate-y-[1px] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
+                          isActive
+                            ? "bg-accent text-accent-foreground hover:bg-accent-hover"
+                            : "bg-primary text-primary-foreground hover:bg-primary-hover"
+                        }`}
+                      >
+                        {isBusy ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : isActive ? (
+                          <Ban size={12} />
+                        ) : (
+                          <CheckCircle2 size={12} />
+                        )}
+                        {isActive ? "Bloklash" : "Faollashtirish"}
+                      </button>
 
-                    <button
-                      type="button"
-                      disabled={isBusy || isBackendOwned}
-                      onClick={() => mutate(barber.id, { method: "DELETE" })}
-                      aria-label="Ustani o'chirish"
-                      className="btn-premium flex h-8 w-8 items-center justify-center rounded-full bg-danger/10 text-danger transition-all duration-200 hover:bg-danger/20 active:scale-90 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => setConfirmDeleteId(barber.id)}
+                        aria-label="Ustani o'chirish"
+                        className="btn-premium flex h-8 w-8 items-center justify-center rounded-full bg-danger/10 text-danger transition-all duration-200 hover:bg-danger/20 active:scale-90 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
+      )}
+
+      {openBarber && (
+        <BarberDetailModal
+          barber={openBarber}
+          isBusy={busyId === openBarber.id}
+          onClose={() => setOpenId(null)}
+          onToggleStatus={() => void toggleStatus(openBarber)}
+          onDelete={() => void remove(openBarber.id)}
+        />
       )}
 
       {isModalOpen && (

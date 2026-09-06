@@ -43,3 +43,28 @@ self.addEventListener("notificationclick", (event) => {
     })
   );
 });
+
+// Offline shell. A browser only offers to install an app it can open without a
+// network, so navigations fall back to a cached copy of the last page that
+// loaded. Everything else goes straight to the network — this is not a cache
+// layer for the app's data, which must always be fresh.
+const SHELL_CACHE = "qn-shell-v1";
+const OFFLINE_URL = "/";
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.add(OFFLINE_URL)));
+});
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.mode !== "navigate") return;
+
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        void caches.open(SHELL_CACHE).then((cache) => cache.put(OFFLINE_URL, copy));
+        return response;
+      })
+      .catch(async () => (await caches.match(OFFLINE_URL)) || Response.error())
+  );
+});

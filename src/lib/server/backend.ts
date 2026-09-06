@@ -420,6 +420,7 @@ interface RawBackendBarber {
   email?: string;
   is_active?: boolean;
   is_blocked?: boolean;
+  created_at?: string;
   services?: {
     id?: number | string;
     name?: string;
@@ -490,7 +491,9 @@ export function mapBackendBarber(raw: RawBackendBarber): BarberProfile {
     email: raw.email ?? "",
     status: raw.is_active === false || raw.is_blocked === true ? "blocked" : "active",
     source: "backend",
-    createdAt: new Date().toISOString(),
+    // Only claim a join date the backend actually sent — a fabricated "today"
+    // reads as fact in the super admin's profile view.
+    createdAt: raw.created_at ?? "",
     services: (raw.services ?? []).map((service, index) => ({
       id: String(service.id ?? index),
       name: service.name ?? "Xizmat",
