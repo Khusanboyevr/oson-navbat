@@ -59,8 +59,8 @@ const DATA_FILE = path.join(DATA_DIR, "qulaynavbat.json");
 
 /* --------------------------------------------------------------- KV store */
 
-const KV_URL = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL ?? "";
-const KV_TOKEN = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN ?? "";
+const KV_URL = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL ?? process.env.UPSTASH_REDIS_KV_REST_API_URL ?? "";
+const KV_TOKEN = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.UPSTASH_REDIS_KV_REST_API_TOKEN ?? "";
 const KV_KEY = process.env.KV_STORE_KEY ?? "qulaynavbat:store";
 const usingKv = Boolean(KV_URL && KV_TOKEN);
 
