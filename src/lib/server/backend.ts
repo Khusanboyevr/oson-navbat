@@ -1,8 +1,11 @@
 import type {
+  ApplicationStatus,
   AppUser,
   BarberApplication,
+  BarberApplicationInput,
   BarberCategoryKey,
   BarberProfile,
+  BarberServiceInput,
   UserRole,
 } from "@/lib/types";
 
@@ -788,6 +791,159 @@ export async function inviteBackendUser(
     {
       method: "POST",
       body: JSON.stringify({ email, role, ...(fullName ? { full_name: fullName } : {}) }),
+    },
+    cookie
+  );
+}
+
+/* -------------------------------------------------- barber applications */
+
+export async function submitBackendBarberApplication(
+  application: BarberApplicationInput,
+  cookie: string | null
+): Promise<ProxyResult<{ id?: string | number }>> {
+  const form = new FormData();
+  form.append("first_name", application.firstName);
+  form.append("last_name", application.lastName);
+  form.append("phone", application.phone.replace(/\D/g, "").slice(-9));
+  form.append("email", application.email);
+  form.append("residence", application.residence);
+  form.append("workplace", application.workplace);
+  form.append("address", application.address);
+  form.append("location_lat", String(application.coordinates.lat));
+  form.append("location_lng", String(application.coordinates.lng));
+  form.append("category", SPECIALTY_CODE[application.category]);
+  form.append("profession", application.profession);
+  form.append("experience_years", String(application.experienceYears));
+  form.append("bio", application.bio);
+  
+  if (application.services.length > 0) {
+    form.append("services", JSON.stringify(application.services.map(s => ({
+      name: s.name,
+      price: s.price,
+      duration_minutes: s.durationMinutes
+    }))));
+  }
+
+  if (application.photo) {
+    const blob = dataUrlToBlob(application.photo);
+    if (blob) {
+      form.append("avatar", blob, "avatar.jpg");
+    }
+  }
+
+  return proxyAsUser<{ id?: string | number }>(
+    "/barber-applications/",
+    { method: "POST", body: form },
+    cookie
+  );
+}
+
+export interface RawBackendBarberApplication {
+  id: string | number;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  email?: string;
+  residence?: string;
+  workplace?: string;
+  address?: string;
+  location_lat?: string | number;
+  location_lng?: string | number;
+  category?: string;
+  profession?: string;
+  experience_years?: number;
+  bio?: string;
+  avatar?: string | null;
+  photo?: string | null;
+  services?: unknown;
+  status?: string;
+  note?: string | null;
+  created_at?: string;
+  user?: number | string;
+}
+
+export function mapBackendBarberApplication(raw: RawBackendBarberApplication): BarberApplication {
+  const category = normalizeCategory(raw.category);
+  
+  let services: BarberServiceInput[] = [];
+  if (Array.isArray(raw.services)) {
+    services = raw.services.map((s: any) => ({
+      name: s.name || s.name,
+      price: toNumber(s.price, 0),
+      durationMinutes: toNumber(s.duration_minutes || s.durationMinutes, 30)
+    }));
+  } else if (typeof raw.services === "string") {
+    try {
+      const parsed = JSON.parse(raw.services);
+      if (Array.isArray(parsed)) {
+        services = parsed.map((s: any) => ({
+          name: s.name,
+          price: toNumber(s.price, 0),
+          durationMinutes: toNumber(s.duration_minutes || s.durationMinutes, 30)
+        }));
+      }
+    } catch {}
+  }
+
+  return {
+    id: String(raw.id),
+    firstName: raw.first_name ?? "",
+    lastName: raw.last_name ?? "",
+    phone: raw.phone ?? "",
+    email: raw.email ?? "",
+    residence: raw.residence ?? "",
+    workplace: raw.workplace ?? "",
+    address: raw.address ?? "",
+    coordinates: {
+      lat: toNumber(raw.location_lat, 0),
+      lng: toNumber(raw.location_lng, 0),
+    },
+    category,
+    profession: raw.profession ?? "",
+    experienceYears: raw.experience_years ?? 0,
+    bio: raw.bio ?? "",
+    photo: raw.avatar ?? raw.photo ?? null,
+    services,
+    status: (raw.status as ApplicationStatus) || "pending",
+    createdAt: raw.created_at ?? new Date().toISOString(),
+    reviewedAt: raw.status && raw.status !== "pending" ? new Date().toISOString() : null,
+    userId: raw.user ? String(raw.user) : null,
+    syncedWithBackend: true,
+    reviewNote: raw.note ?? null,
+  };
+}
+
+export async function fetchAdminBackendBarberApplications(cookie: string | null): Promise<ProxyResult<BarberApplication[]>> {
+  const result = await proxyAsUser<PaginatedBackend<RawBackendBarberApplication> | RawBackendBarberApplication[]>(
+    "/super-admin/barber-applications/?page_size=100",
+    {},
+    cookie
+  );
+
+  const rows = Array.isArray(result.data) ? result.data : (result.data?.results ?? []);
+  return { ...result, data: result.ok ? rows.map(mapBackendBarberApplication) : null };
+}
+
+export async function fetchOwnBackendBarberApplication(cookie: string | null): Promise<ProxyResult<BarberApplication>> {
+  const result = await proxyAsUser<RawBackendBarberApplication | RawBackendBarberApplication[]>("/barber-applications/me/", {}, cookie);
+  if (!result.ok || !result.data) return { ...result, data: null };
+  
+  const row = Array.isArray(result.data) ? result.data[0] : result.data;
+  return { ...result, data: row ? mapBackendBarberApplication(row) : null };
+}
+
+export async function updateBackendBarberApplication(
+  id: string,
+  status: "approved" | "rejected",
+  note: string,
+  cookie: string | null
+): Promise<ProxyResult<{ id?: string | number }>> {
+  return proxyAsUser<{ id?: string | number }>(
+    `/super-admin/barber-applications/${id}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(status === "rejected" ? { status, note } : { status }),
     },
     cookie
   );
